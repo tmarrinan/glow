@@ -19,13 +19,20 @@ void onKeyUp(unsigned short key, int x, int y, glow *gl);
 
 unsigned int fontTex[2];
 
-int main () {
+int main (int argc, char **argv) {
+	if (strcmp(argv[0], "./text/text") != 0) {
+		printf(" program designed to be run from \'examples\' directory.\n");
+		printf(" please cd to '<glow_dir>/examples' and run ./text/text\n");
+		exit(1);
+	}
+
     glow *gl = new glow();
 
     //gl->initialize(GLOW_OPENGL_3_2_CORE, GLOW_HIDPI_WINDOW);
     gl->initialize(GLOW_OPENGL_LEGACY, GLOW_BASE_WINDOW);
     gl->createWindow("TEST", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 800, 640);
 
+/*
     gl->mouseDownListener(onMouseDown);
     gl->mouseUpListener(onMouseUp);
     gl->mouseMoveListener(onMouseMove);
@@ -42,7 +49,7 @@ int main () {
     unsigned int t3 = gl->setTimeout(timeout, 2000);
 
     gl->cancelTimeout(t2);
-
+*/
     string version, shadingVersion;
     gl->getGLVersions(&version, &shadingVersion);
     printf("Using OpenGL: %s, GLSL: %s\n", version.c_str(), shadingVersion.c_str());
@@ -86,7 +93,7 @@ int main () {
 
     return 0;
 }
-
+/*
 void display(unsigned long t, unsigned int dt, glow *gl) {
     //printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
 
@@ -164,3 +171,4 @@ void onKeyDown(unsigned short key, int x, int y, glow *gl) {
 void onKeyUp(unsigned short key, int x, int y, glow *gl) {
     printf("keyup: %u (%d, %d)\n", key, x, y);
 }
+*/
