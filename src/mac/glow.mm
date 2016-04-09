@@ -1,7 +1,7 @@
 #include "glow.h"
 
 #import <Cocoa/Cocoa.h>
-#import "glView.h"
+#import "mac/glView.h"
 
 // Application Delegate (quit app when window is closed)
 @interface GLDelegate : NSObject <NSApplicationDelegate>

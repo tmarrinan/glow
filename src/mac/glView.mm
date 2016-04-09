@@ -1,4 +1,4 @@
-#import "glView.h"
+#import "mac/glView.h"
 
 
 @implementation glView {
