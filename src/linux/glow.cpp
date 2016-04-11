@@ -25,6 +25,10 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	glProfile = profile;
 	hiDPISupport = hidpi;
 
+	renderCallback = NULL;
+	idleCallback = NULL;
+	resizeCallback = NULL;
+
 	int glxMajor, glxMinor;
 	if (!glXQueryVersion(display, &glxMajor, &glxMinor) || (glxMajor == 1 && glxMinor < 3) || glxMajor < 1) {
 		fprintf(stderr, "Requires GLX >= 1.3, only found %d.%d\n", glxMajor, glxMinor);
@@ -46,6 +50,12 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 }
 
 void glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height) {	
+	requiresRender = true;
+	struct timeval tp;
+    gettimeofday(&tp, NULL);
+    startTime = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    prevTime = startTime;
+	
 	int visualAttribs[] = {
 		GLX_X_RENDERABLE,  True,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
@@ -142,22 +152,18 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	XMoveWindow(display, window, x, y);
 }
 
-/*
 void glow::renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view renderFunction:callback];
+	renderCallback = callback;
 }
 
 void glow::idleFunction(void (*callback)(glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view idleFunction:callback];
+	idleCallback = callback;
 }
 
 void glow::resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view resizeFunction:callback];
+	resizeCallback = callback;
 }
-
+/*
 unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait) {
 	glView* view = (glView*)[glContext view];
 	unsigned int t = [view setTimeout:callback wait:wait];
@@ -198,38 +204,69 @@ void glow::keyUpListener(void (*callback)(unsigned short key, int x, int y, glow
 	glView* view = (glView*)[glContext view];
 	[view keyUpListener:callback];
 }
-
+*/
 void glow::swapBuffers() {
-	glView* view = (glView*)[glContext view];
-	[view swapBuffers];
+	glXSwapBuffers(display, window);
 }
 
 void glow::requestRenderFrame() {
-	glView* view = (glView*)[glContext view];
-	[view requestRenderFrame];
+	requiresRender = true;
 }
-*/
+
 void glow::runLoop() {
+	Atom idleMessage = XInternAtom(display, "IDLE", False);
+	Atom wmProtocols = XInternAtom(display, "WM_PROTOCOLS", False);
 	Atom wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False);
 	XSetWMProtocols(display, window, &wmDeleteMessage, 1);
 
 	XEvent event;
+	bool isIdle = true;
 	bool running = true;	
 	while (running) {
-		XNextEvent(display, &event);
-		if (event.xany.window != window) continue;
+		while (XPending(display)) {
+			XNextEvent(display, &event);
+			if (event.xany.window != window) continue;
 		
-		switch (event.type) {
-			case ConfigureNotify:
-				//printf("config: %dx%d, [%d %d]\n", event.xconfigure.width, event.xconfigure.height, event.xconfigure.x, event.xconfigure.y);
-				break;
-			case ClientMessage:
-				if (event.xclient.data.l[0] == wmDeleteMessage) {
-					running = false;
-				}
-				break;
-			default:
-				break;
+			switch (event.type) {
+				case ConfigureNotify:
+					//printf("config: %dx%d, [%d %d]\n", event.xconfigure.width, event.xconfigure.height, event.xconfigure.x, event.xconfigure.y);
+					break;
+				case ClientMessage:
+					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
+						running = false;
+					}
+					else if (event.xclient.message_type == idleMessage) {
+						idleCallback(this);
+						isIdle = true;
+					}
+					else {
+						printf("oops, received other client message\n");
+					}
+					break;
+				default:
+					printf("default message %d\n", event.type);
+					break;
+			}
+		}
+		if (!running) break;
+
+		if (isIdle && idleCallback) {
+			isIdle = false;
+			XClientMessageEvent idleEvent;
+			idleEvent.type = ClientMessage;
+			idleEvent.window = window;
+			idleEvent.message_type = idleMessage;
+			idleEvent.format = 32;
+			idleEvent.data.l[0] = 0;
+			XSendEvent(display, window, False, 0, (XEvent*)&idleEvent);
+		}
+		if (requiresRender && renderCallback) {
+			struct timeval tp;
+			gettimeofday(&tp, NULL);
+			long now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+			renderCallback(now - startTime, now - prevTime, this);
+			prevTime = now;
+			requiresRender = false;
 		}
 	}
 

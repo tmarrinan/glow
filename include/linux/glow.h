@@ -8,6 +8,7 @@
 #include <GL/glx.h>
 #include <GL/glu.h>
 
+#include <sys/time.h>
 #include <unistd.h>
 #include <iostream>
 #include <string>
@@ -47,6 +48,13 @@ private:
 	GLXContext ctx;
 	unsigned int glProfile;
 	unsigned int hiDPISupport;
+	bool requiresRender;
+	long startTime;
+    long prevTime;
+
+	void (*renderCallback)(unsigned long t, unsigned int dt, glow *gl);
+	void (*idleCallback)(glow *gl);
+	void (*resizeCallback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl);
 
 	FT_Library ft;
 

@@ -39,11 +39,11 @@ int main (int argc, char **argv) {
     gl->scrollWheelListener(onScrollWheel);
     gl->keyDownListener(onKeyDown);
     gl->keyUpListener(onKeyUp);
-
+*/
     gl->renderFunction(display);
     gl->idleFunction(idle);
     gl->resizeFunction(resize);
-
+/*
     unsigned int t1 = gl->setTimeout(timeout, 5000);
     unsigned int t2 = gl->setTimeout(timeout, 1000);
     unsigned int t3 = gl->setTimeout(timeout, 2000);
@@ -93,7 +93,7 @@ int main (int argc, char **argv) {
 
     return 0;
 }
-/*
+
 void display(unsigned long t, unsigned int dt, glow *gl) {
     //printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
 
@@ -125,15 +125,15 @@ void display(unsigned long t, unsigned int dt, glow *gl) {
 void idle(glow *gl) {
     gl->requestRenderFrame();
 }
-
+/*
 void timeout(unsigned int id, glow *gl) {
     printf("timeout: %u\n", id);
 }
-
+*/
 void resize(unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, glow *gl) {
     printf("window size: %ux%u (%ux%u)\n", wW, wH, rW, rH);
 }
-
+/*
 void onMouseDown(unsigned short button, int x, int y, glow *gl) {
     switch (button) {
         case GLOW_MOUSE_BUTTON_LEFT:
