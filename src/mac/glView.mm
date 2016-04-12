@@ -281,6 +281,8 @@
     NSSize wsize = [self frame].size;
     NSSize bsize = [self convertSizeToBacking:wsize];
 
+    [glContext update];
+
     resizeCallback(wsize.width, wsize.height, bsize.width, bsize.height, glowPtr);
 }
 
