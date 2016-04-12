@@ -8,21 +8,25 @@ GLOW_INC= -I/usr/local/include/freetype2 -I./include
 TEST_INC= -I/usr/local/include/freetype2 -I./include
 TEST_LIB= -L/usr/local/lib/ -L./lib -lglow -lfreetype -framework Cocoa -framework OpenGL
 GLOW_LIBDIR= ./lib
-GLOW_LIBS= $(addprefix $(GLOW_LIBDIR)/, libglow.a)
+GLOW_LIBS_S= $(addprefix $(GLOW_LIBDIR)/, libglow.a)
+GLOW_LIBS_D= $(addprefix $(GLOW_LIBDIR)/, libglow.so)
 GLOW_OBJDIR= ./objs
 GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glView.o glow.o)
 
-all: $(GLOW_LIBS)
+all: $(GLOW_LIBS_S) $(GLOW_LIBS_D)
 
 # libglow
-$(GLOW_LIBS): $(GLOW_LIBDIR) $(GLOW_OBJS)
-	ar -cq $(GLOW_LIBS) $(GLOW_OBJS)
+$(GLOW_LIBS_S): $(GLOW_LIBDIR) $(GLOW_OBJS)
+	ar -cq $(GLOW_LIBS_S) $(GLOW_OBJS)
+
+$(GLOW_LIBS_D): $(GLOW_LIBDIR) $(GLOW_OBJS)
+	$(CXX) -o $(GLOW_LIBS_D) $(GLOW_OBJS) -shared
 
 $(GLOW_LIBDIR):
 	mkdir -p $(GLOW_LIBDIR)
 
 $(GLOW_OBJDIR)/%.o: ./src/mac/%.mm
-	$(CXX) -c -o $@ $< $(GLOW_INC)
+	$(CXX) -c -o $@ $< $(GLOW_INC) -fPIC
 
 $(GLOW_OBJS): | $(GLOW_OBJDIR)
 
@@ -37,21 +41,25 @@ GLOW_INC= -I/usr/include -I/usr/include/freetype2 -I./include
 TEST_INC= -I/usr/include -I/usr/include/freetype2 -I./include
 TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib -lglow -lGL -lGLU -lfreetype -lX11
 GLOW_LIBDIR= ./lib
-GLOW_LIBS= $(addprefix $(GLOW_LIBDIR)/, libglow.a)
+GLOW_LIBS_S= $(addprefix $(GLOW_LIBDIR)/, libglow.a)
+GLOW_LIBS_D= $(addprefix $(GLOW_LIBDIR)/, libglow.so)
 GLOW_OBJDIR= ./objs
-GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glow.o) 
+GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glow.o)
 
-all: $(GLOW_LIBS)
+all: $(GLOW_LIBS_S) $(GLOW_LIBS_D)
 
 # libglow
-$(GLOW_LIBS): $(GLOW_LIBDIR) $(GLOW_OBJS)
-	ar -cq $(GLOW_LIBS) $(GLOW_OBJS)
+$(GLOW_LIBS_S): $(GLOW_LIBDIR) $(GLOW_OBJS)
+	ar -cq $(GLOW_LIBS_S) $(GLOW_OBJS)
+
+$(GLOW_LIBS_D): $(GLOW_LIBDIR) $(GLOW_OBJS)
+	$(CXX) -o $(GLOW_LIBS_D) $(GLOW_OBJS) -shared
 
 $(GLOW_LIBDIR):
 	mkdir -p $(GLOW_LIBDIR)
 
 $(GLOW_OBJDIR)/%.o: ./src/linux/%.cpp
-	$(CXX) -c -o $@ $< $(GLOW_INC)
+	$(CXX) -c -o $@ $< $(GLOW_INC) -fPIC
 
 $(GLOW_OBJS): | $(GLOW_OBJDIR)
 
@@ -73,6 +81,6 @@ text/main.o: | ./examples/text/objs
 
 
 clean:
-	rm -f examples/text/text examples/text/objs/main.o $(GLOW_LIBS) $(GLOW_OBJS)
+	rm -f examples/text/text examples/text/objs/main.o $(GLOW_LIBS_S) $(GLOW_OBJS)
 
 remake: clean all
