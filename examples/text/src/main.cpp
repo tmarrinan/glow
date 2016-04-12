@@ -37,11 +37,11 @@ int main (int argc, char **argv) {
     gl->mouseUpListener(onMouseUp);
     gl->mouseMoveListener(onMouseMove);
     gl->scrollWheelListener(onScrollWheel);
-    gl->keyDownListener(onKeyDown);
+*/    gl->keyDownListener(onKeyDown);
     gl->keyUpListener(onKeyUp);
-*/
+
     gl->renderFunction(display);
-    gl->idleFunction(idle);
+    //gl->idleFunction(idle);
     gl->resizeFunction(resize);
 /*
     unsigned int t1 = gl->setTimeout(timeout, 5000);
@@ -95,7 +95,7 @@ int main (int argc, char **argv) {
 }
 
 void display(unsigned long t, unsigned int dt, glow *gl) {
-    //printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
+    printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
 
     float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0;
     glClearColor(c, c, c, 1.0);
@@ -132,6 +132,8 @@ void timeout(unsigned int id, glow *gl) {
 */
 void resize(unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, glow *gl) {
     printf("window size: %ux%u (%ux%u)\n", wW, wH, rW, rH);
+	glViewport(0, 0, rW, rH);
+	gl->requestRenderFrame();
 }
 /*
 void onMouseDown(unsigned short button, int x, int y, glow *gl) {
@@ -163,7 +165,7 @@ void onMouseMove(int x, int y, glow *gl) {
 void onScrollWheel(int dx, int dy, int x, int y, glow *gl) {
     printf("scroll wheel: %d %d (%d, %d)\n", dx, dy, x, y);
 }
-
+*/
 void onKeyDown(unsigned short key, int x, int y, glow *gl) {
     printf("keydown: %u (%d, %d)\n", key, x, y);
 }
@@ -171,4 +173,4 @@ void onKeyDown(unsigned short key, int x, int y, glow *gl) {
 void onKeyUp(unsigned short key, int x, int y, glow *gl) {
     printf("keyup: %u (%d, %d)\n", key, x, y);
 }
-*/
+

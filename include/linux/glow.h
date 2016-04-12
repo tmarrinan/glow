@@ -4,6 +4,7 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glu.h>
@@ -48,13 +49,17 @@ private:
 	GLXContext ctx;
 	unsigned int glProfile;
 	unsigned int hiDPISupport;
+	int prevX;
+	int prevY;
+	int prevW;
+	int prevH;
 	bool requiresRender;
-	long startTime;
-    long prevTime;
 
 	void (*renderCallback)(unsigned long t, unsigned int dt, glow *gl);
 	void (*idleCallback)(glow *gl);
 	void (*resizeCallback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl);
+	void (*keyDownCallback)(unsigned short key, int x, int y, glow *gl);
+	void (*keyUpCallback)(unsigned short key, int x, int y, glow *gl);
 
 	FT_Library ft;
 

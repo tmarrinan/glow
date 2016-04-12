@@ -28,6 +28,8 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	renderCallback = NULL;
 	idleCallback = NULL;
 	resizeCallback = NULL;
+	keyDownCallback = NULL;
+	keyUpCallback = NULL;
 
 	int glxMajor, glxMinor;
 	if (!glXQueryVersion(display, &glxMajor, &glxMinor) || (glxMajor == 1 && glxMinor < 3) || glxMajor < 1) {
@@ -50,12 +52,6 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 }
 
 void glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height) {	
-	requiresRender = true;
-	struct timeval tp;
-    gettimeofday(&tp, NULL);
-    startTime = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    prevTime = startTime;
-	
 	int visualAttribs[] = {
 		GLX_X_RENDERABLE,  True,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
@@ -106,7 +102,7 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	swa.colormap = cmap;
 	swa.background_pixmap = None;
 	swa.border_pixel = 0;
-	swa.event_mask = StructureNotifyMask | KeyPressMask;
+	swa.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask;
 
 	window = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, (CWBorderPixel | CWColormap | CWEventMask), &swa);
 	if (!window) {
@@ -149,6 +145,10 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 
 	if (x == GLOW_CENTER_HORIZONTAL) x = (screenW / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (screenH / 2) - (height / 2);
+	prevX = x;
+	prevY = y;
+	prevW = width;
+	prevH = height;
 	XMoveWindow(display, window, x, y);
 }
 
@@ -194,17 +194,15 @@ void glow::scrollWheelListener(void (*callback)(int dx, int dy, int x, int y, gl
 	glView* view = (glView*)[glContext view];
 	[view scrollWheelListener:callback];
 }
-
+*/
 void glow::keyDownListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view keyDownListener:callback];
+	keyDownCallback = callback;
 }
 
 void glow::keyUpListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view keyUpListener:callback];
+	keyUpCallback = callback;
 }
-*/
+
 void glow::swapBuffers() {
 	glXSwapBuffers(display, window);
 }
@@ -219,17 +217,68 @@ void glow::runLoop() {
 	Atom wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False);
 	XSetWMProtocols(display, window, &wmDeleteMessage, 1);
 
+	long startTime;
+    long prevTime;
+	struct timeval tp;
+	requiresRender = false;
+
+	bool initWindowPlacement = false;
+
+	int charcount;
+	char buffer[20];
+	int bufsize = 20;
+	KeySym keysym;
+	XComposeStatus compose;
+
 	XEvent event;
-	bool isIdle = true;
-	bool running = true;	
+	bool isIdle = false;
+	bool running = true;
 	while (running) {
 		while (XPending(display)) {
 			XNextEvent(display, &event);
 			if (event.xany.window != window) continue;
 		
 			switch (event.type) {
+				case MapNotify:
+					requiresRender = true;
+   					gettimeofday(&tp, NULL);
+    				startTime = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    				prevTime = startTime;
+					isIdle = true;
+					break;
 				case ConfigureNotify:
-					//printf("config: %dx%d, [%d %d]\n", event.xconfigure.width, event.xconfigure.height, event.xconfigure.x, event.xconfigure.y);
+					if (!initWindowPlacement) {
+						if (event.xconfigure.x == prevX && event.xconfigure.y == prevY && event.xconfigure.width == prevW && event.xconfigure.height == prevH) {
+							initWindowPlacement = true;
+						}
+					}
+					else {
+						if (resizeCallback && (prevW != event.xconfigure.width || prevH != event.xconfigure.height)) {
+							resizeCallback(event.xconfigure.width, event.xconfigure.height, event.xconfigure.width, event.xconfigure.height, this);
+						}
+						prevX = event.xconfigure.x;
+						prevY = event.xconfigure.y;
+						prevW = event.xconfigure.width;
+						prevH = event.xconfigure.height;
+					}
+					break;
+				case KeyPress:
+					if (!keyDownCallback) break;
+
+					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
+					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
+						keyDownCallback(buffer[0], 0, 0, this);
+					}
+					else {
+
+					}
+
+					if (keysym == XK_Shift_L) printf("keypress: SHIFT_L\n");
+					if (keysym == XK_Shift_R) printf("keypress: SHIFT_R\n");
+					break;
+				case KeyRelease:
+					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
+					printf("keyrelease: %lu\n", keysym);
 					break;
 				case ClientMessage:
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
@@ -239,12 +288,8 @@ void glow::runLoop() {
 						idleCallback(this);
 						isIdle = true;
 					}
-					else {
-						printf("oops, received other client message\n");
-					}
 					break;
 				default:
-					printf("default message %d\n", event.type);
 					break;
 			}
 		}
