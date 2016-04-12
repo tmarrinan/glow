@@ -1,45 +1,31 @@
 #include "glow.h"
 
-/*
-#import <Cocoa/Cocoa.h>
-#import "glView.h"
-
-// Application Delegate (quit app when window is closed)
-@interface GLDelegate : NSObject <NSApplicationDelegate>
-
--(BOOL) applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app;
-
-@end
-
-@implementation GLDelegate
--(BOOL) applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app {
-    return YES;
-}
-@end
-*/
 
 PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
 
-// GLOW C++ Wrapped Interface
+// GLOW C++ Interface
 void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	glProfile = profile;
 	hiDPISupport = hidpi;
+
+	mouseX = 0;
+    mouseY = 0;
 
 	renderCallback = NULL;
 	idleCallback = NULL;
 	resizeCallback = NULL;
 	keyDownCallback = NULL;
 	keyUpCallback = NULL;
+	
+	display = XOpenDisplay(NULL);
+	if (!display) {
+		fprintf(stderr, "Failed to open X display\n");
+		exit(1);
+	}
 
 	int glxMajor, glxMinor;
 	if (!glXQueryVersion(display, &glxMajor, &glxMinor) || (glxMajor == 1 && glxMinor < 3) || glxMajor < 1) {
 		fprintf(stderr, "Requires GLX >= 1.3, only found %d.%d\n", glxMajor, glxMinor);
-		exit(1);
-	}
-
-	display = XOpenDisplay(NULL);
-	if (!display) {
-		fprintf(stderr, "Failed to open X display\n");
 		exit(1);
 	}
 
@@ -49,6 +35,8 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	offsetsFromUTF8[1] = 0x00003080UL;
 	offsetsFromUTF8[2] = 0x000E2080UL;
 	offsetsFromUTF8[3] = 0x03C82080UL;
+
+	capsmask = XkbKeysymToModifiers(display, XK_Caps_Lock);
 }
 
 void glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height) {	
@@ -56,7 +44,6 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		GLX_X_RENDERABLE,  True,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
 		GLX_RENDER_TYPE,   GLX_RGBA_BIT,
-		//GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
 		GLX_RED_SIZE,      8,
 		GLX_GREEN_SIZE,    8,
 		GLX_BLUE_SIZE,     8,
@@ -82,16 +69,20 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 			int sampBufs, samples;
 			glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLE_BUFFERS, &sampBufs);
 			glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLES, &samples);
-			if (sampBufs && samples > bestNumSamp) {
+			if ((sampBufs && samples > bestNumSamp) || bestFbcIdx < 0) {
 				bestFbcIdx = i;
 				bestNumSamp = samples;
 			}
-			if (!sampBufs || samples < worstNumSamp) {
+			if ((!sampBufs || samples < worstNumSamp) || bestFbcIdx < 0) {
 				worstFbcIdx = i;
 				worstNumSamp = samples;
 			}
 		}
 		XFree(cvi);
+	}
+	if (bestFbcIdx < 0) {
+		fprintf(stderr, "Failed to find a suitable framebuffer configuration\n");
+		exit(1);
 	}
 	GLXFBConfig bestFbc = fbc[bestFbcIdx];
 	XFree(fbc);
@@ -122,11 +113,11 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		int glProfileAttribs[] = {
 			GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
 			GLX_CONTEXT_MINOR_VERSION_ARB, 2,
-			GLX_CONTEXT_FLAGS_ARB,         GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+			GLX_CONTEXT_FLAGS_ARB,         0,
 			GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
 			None
 		};
-		ctx = glXCreateContextAttribsARB(display, bestFbc, 0, true, glProfileAttribs);
+		ctx = glXCreateContextAttribsARB(display, bestFbc, 0, True, glProfileAttribs);
 	}
 	else {
 		ctx = glXCreateNewContext(display, bestFbc, GLX_RGBA_TYPE, 0, True);
@@ -229,6 +220,7 @@ void glow::runLoop() {
 	int bufsize = 20;
 	KeySym keysym;
 	XComposeStatus compose;
+	XkbStateRec kstate;
 
 	XEvent event;
 	bool isIdle = false;
@@ -267,18 +259,35 @@ void glow::runLoop() {
 
 					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
 					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyDownCallback(buffer[0], 0, 0, this);
+						keyDownCallback(buffer[0], mouseX, mouseY, this);
 					}
 					else {
-
+						if (keysym == XK_Caps_Lock) {
+							XkbGetState(display, XkbUseCoreKbd, &kstate);
+							if (kstate.locked_mods & capsmask) {
+								keyDownCallback(specialKey(keysym), mouseX, mouseY, this);
+							}
+							else {
+								keyUpCallback(specialKey(keysym), mouseX, mouseY, this);
+							}
+						}
+						else {
+							keyDownCallback(specialKey(keysym), mouseX, mouseY, this);
+						}
 					}
-
-					if (keysym == XK_Shift_L) printf("keypress: SHIFT_L\n");
-					if (keysym == XK_Shift_R) printf("keypress: SHIFT_R\n");
 					break;
 				case KeyRelease:
+					if (!keyUpCallback) break;
+
 					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
-					printf("keyrelease: %lu\n", keysym);
+					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
+						keyUpCallback(buffer[0], mouseX, mouseY, this);
+					}
+					else {
+						if (keysym != XK_Caps_Lock) {
+							keyUpCallback(specialKey(keysym), mouseX, mouseY, this);
+						}
+					}
 					break;
 				case ClientMessage:
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
@@ -318,6 +327,92 @@ void glow::runLoop() {
 	glXDestroyContext(display, ctx);
 	XDestroyWindow(display, window);
 	XCloseDisplay(display);
+}
+
+unsigned short glow::specialKey(KeySym code) {
+	unsigned short key;
+    switch (code) {
+        case XK_Shift_L:
+            key = GLOW_KEY_LEFT_SHIFT;
+            break;
+		case XK_Shift_R:
+            key = GLOW_KEY_RIGHT_SHIFT;
+            break;
+		case XK_Control_L:
+            key = GLOW_KEY_LEFT_CONTROL;
+            break;
+		case XK_Control_R:
+            key = GLOW_KEY_RIGHT_CONTROL;
+            break;
+		case XK_Alt_L:
+            key = GLOW_KEY_LEFT_ALT;
+            break;
+		case XK_Alt_R:
+            key = GLOW_KEY_RIGHT_ALT;
+            break;
+		case XK_Super_L:
+            key = GLOW_KEY_LEFT_COMMAND;
+            break;
+		case XK_Super_R:
+            key = GLOW_KEY_RIGHT_COMMAND;
+            break;
+        case XK_Caps_Lock:
+            key = GLOW_KEY_CAPS_LOCK;
+            break;
+        case XK_F1:
+            key = GLOW_KEY_F1;
+            break;
+        case XK_F2:
+            key = GLOW_KEY_F2;
+            break;
+        case XK_F3:
+            key = GLOW_KEY_F3;
+            break;
+        case XK_F4:
+            key = GLOW_KEY_F4;
+            break;
+        case XK_F5:
+            key = GLOW_KEY_F5;
+            break;
+        case XK_F6:
+            key = GLOW_KEY_F6;
+            break;
+        case XK_F7:
+            key = GLOW_KEY_F7;
+            break;
+        case XK_F8:
+            key = GLOW_KEY_F8;
+            break;
+        case XK_F9:
+            key = GLOW_KEY_F9;
+            break;
+        case XK_F10:
+            key = GLOW_KEY_F10;
+            break;
+        case XK_F11:
+            key = GLOW_KEY_F11;
+            break;
+        case XK_F12:
+            key = GLOW_KEY_F12;
+            break;
+        case XK_Left:
+            key = GLOW_KEY_LEFT_ARROW;
+            break;
+        case XK_Right:
+            key = GLOW_KEY_RIGHT_ARROW;
+            break;
+        case XK_Down:
+            key = GLOW_KEY_DOWN_ARROW;
+            break;
+        case XK_Up:
+            key = GLOW_KEY_UP_ARROW;
+            break;
+        default:
+			printf("unknown: %lu\n", code);
+            key = GLOW_KEY_NONE;
+            break;
+    }
+    return key;
 }
 
 void glow::createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr) {

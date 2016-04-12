@@ -4,6 +4,7 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
@@ -53,6 +54,9 @@ private:
 	int prevY;
 	int prevW;
 	int prevH;
+	int mouseX;
+    int mouseY;
+	unsigned int capsmask;
 	bool requiresRender;
 
 	void (*renderCallback)(unsigned long t, unsigned int dt, glow *gl);
@@ -65,6 +69,7 @@ private:
 
 	uint32_t offsetsFromUTF8[4];
 
+	unsigned short specialKey(KeySym code);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
 	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<charGlyph> *glyphs);
 public:

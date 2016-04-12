@@ -41,7 +41,7 @@ int main (int argc, char **argv) {
     gl->keyUpListener(onKeyUp);
 
     gl->renderFunction(display);
-    //gl->idleFunction(idle);
+    gl->idleFunction(idle);
     gl->resizeFunction(resize);
 /*
     unsigned int t1 = gl->setTimeout(timeout, 5000);
@@ -95,7 +95,7 @@ int main (int argc, char **argv) {
 }
 
 void display(unsigned long t, unsigned int dt, glow *gl) {
-    printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
+    //printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
 
     float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0;
     glClearColor(c, c, c, 1.0);
@@ -167,10 +167,10 @@ void onScrollWheel(int dx, int dy, int x, int y, glow *gl) {
 }
 */
 void onKeyDown(unsigned short key, int x, int y, glow *gl) {
-    printf("keydown: %u (%d, %d)\n", key, x, y);
+    printf("keydown: %u [%c] (%d, %d)\n", key, (unsigned char)key, x, y);
 }
 
 void onKeyUp(unsigned short key, int x, int y, glow *gl) {
-    printf("keyup: %u (%d, %d)\n", key, x, y);
+    printf("keyup: %u [%c] (%d, %d)\n", key, (unsigned char)key, x, y);
 }
 
