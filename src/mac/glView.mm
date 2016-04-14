@@ -35,8 +35,8 @@
     double dpiScale;
 
     unsigned int timerId;
-    NSTimer *timeoutTimers[MAX_TIMERS];
-    void (* timeoutCallbacks[MAX_TIMERS])(unsigned int timeoutId, glow *gl);
+    NSTimer *timeoutTimers[GLOW_MAX_TIMERS];
+    void (* timeoutCallbacks[GLOW_MAX_TIMERS])(unsigned int timeoutId, glow *gl);
 }
 
 - (id) init {
@@ -390,7 +390,7 @@
 
     timeoutTimers[timerId] = timeoutTimer;
     timeoutCallbacks[timerId] = callback;
-    timerId = (timerId + 1) % MAX_TIMERS;
+    timerId = (timerId + 1) % GLOW_MAX_TIMERS;
     return [tId intValue];
 }
 

@@ -39,7 +39,7 @@ else
 
 GLOW_INC= -I/usr/include -I/usr/include/freetype2 -I./include
 TEST_INC= -I/usr/include -I/usr/include/freetype2 -I./include
-TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib -lglow -lGL -lGLU -lfreetype -lX11
+TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib -lglow -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
 GLOW_LIBDIR= ./lib
 GLOW_LIBS_S= $(addprefix $(GLOW_LIBDIR)/, libglow.a)
 GLOW_LIBS_D= $(addprefix $(GLOW_LIBDIR)/, libglow.so)

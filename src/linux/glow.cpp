@@ -11,6 +11,8 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	mouseX = 0;
     mouseY = 0;
 
+	timerId = 0;
+
 	renderCallback = NULL;
 	idleCallback = NULL;
 	resizeCallback = NULL;
@@ -154,18 +156,48 @@ void glow::idleFunction(void (*callback)(glow *gl)) {
 void glow::resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl)) {
 	resizeCallback = callback;
 }
-/*
+
 unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait) {
-	glView* view = (glView*)[glContext view];
-	unsigned int t = [view setTimeout:callback wait:wait];
-	return t;
+	int tId = timerId;
+	struct sigevent se;
+	struct itimerspec ts;
+
+	timer_data *data = (timer_data*)malloc(sizeof(timer_data));
+	data->glow_ptr = this;
+	data->timer_id = tId;
+
+	se.sigev_notify = SIGEV_THREAD;
+	se.sigev_value.sival_ptr = data;
+	se.sigev_notify_function = timeoutTimerFired;// glow method?
+	se.sigev_notify_attributes = NULL;
+
+	ts.it_value.tv_sec = wait / 1000;
+	ts.it_value.tv_nsec = (unsigned long)(wait % 1000) * (unsigned long)1000000;
+	ts.it_interval.tv_sec = 0;
+	ts.it_interval.tv_nsec = 0;
+
+	timeoutCallbacks[tId] = callback;
+
+	timer_create(CLOCK_REALTIME, &se, &timeoutTimers[tId]);
+	timer_settime(timeoutTimers[tId], 0, &ts, NULL);
+	
+	timerId = (timerId + 1) % GLOW_MAX_TIMERS;
+	return tId;
 }
 
 void glow::cancelTimeout(unsigned int timeoutId) {
-	glView* view = (glView*)[glContext view];
-	[view cancelTimeout:timeoutId];
+	timer_delete(timeoutTimers[timeoutId]);
 }
 
+void glow::timeoutTimerFired(union sigval arg) {
+	timer_data *data = (timer_data*)arg.sival_ptr;
+	
+	// TODO: trigger custom x event and call callback from event loop
+	data->glow_ptr->timeoutCallbacks[data->timer_id](data->timer_id, data->glow_ptr);
+	timer_delete(data->glow_ptr->timeoutTimers[data->timer_id]);
+	free(data);
+}
+/*
 void glow::mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
 	glView* view = (glView*)[glContext view];
 	[view mouseDownListener:callback];

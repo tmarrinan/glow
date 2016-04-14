@@ -11,6 +11,7 @@
 #include <GL/glu.h>
 
 #include <sys/time.h>
+#include <signal.h>
 #include <unistd.h>
 #include <iostream>
 #include <string>
@@ -20,12 +21,21 @@
 
 #include "glowEvents.h"
 
+#define GLOW_MAX_TIMERS 128
+
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_3_2_CORE 1
 #define GLOW_BASE_WINDOW 0
 #define GLOW_HIDPI_WINDOW 1
 #define GLOW_CENTER_HORIZONTAL INT_MAX
 #define GLOW_CENTER_VERTICAL INT_MAX
+
+class glow;
+
+typedef struct timer_data {
+	glow *glow_ptr;
+	unsigned int timer_id;
+} timer_data;
 
 typedef struct GLOW_FontFace {
 	FT_Face face;
@@ -40,6 +50,8 @@ typedef struct charGlyph {
 	int top;
 	int advanceX;
 } charGlyph;
+
+typedef void (*timer_func)(unsigned int timeoutId, glow *gl);
 
 extern PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB;
 
@@ -58,6 +70,9 @@ private:
     int mouseY;
 	unsigned int capsmask;
 	bool requiresRender;
+	unsigned int timerId;
+	timer_t timeoutTimers[GLOW_MAX_TIMERS];
+	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];
 
 	void (*renderCallback)(unsigned long t, unsigned int dt, glow *gl);
 	void (*idleCallback)(glow *gl);
@@ -69,6 +84,7 @@ private:
 
 	uint32_t offsetsFromUTF8[4];
 
+	static void timeoutTimerFired(union sigval arg);
 	unsigned short specialKey(KeySym code);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
 	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<charGlyph> *glyphs);
@@ -83,7 +99,7 @@ public:
 	void renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl));
 	void idleFunction(void (*callback)(glow *gl));
 	void resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl));
-	unsigned int setTiminiteout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait);
+	unsigned int setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait);
 	void cancelTimeout(unsigned int timeoutId);
 
 	void mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl));

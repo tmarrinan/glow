@@ -5,7 +5,7 @@
 
 #import "glow.h"
 
-#define MAX_TIMERS 128
+#define GLOW_MAX_TIMERS 128
 
 @class NSOpenGLContext;
 

@@ -43,13 +43,13 @@ int main (int argc, char **argv) {
     gl->renderFunction(display);
     gl->idleFunction(idle);
     gl->resizeFunction(resize);
-/*
+
     unsigned int t1 = gl->setTimeout(timeout, 5000);
     unsigned int t2 = gl->setTimeout(timeout, 1000);
     unsigned int t3 = gl->setTimeout(timeout, 2000);
 
     gl->cancelTimeout(t2);
-*/
+
     string version, shadingVersion;
     gl->getGLVersions(&version, &shadingVersion);
     printf("Using OpenGL: %s, GLSL: %s\n", version.c_str(), shadingVersion.c_str());
@@ -125,11 +125,11 @@ void display(unsigned long t, unsigned int dt, glow *gl) {
 void idle(glow *gl) {
     gl->requestRenderFrame();
 }
-/*
+
 void timeout(unsigned int id, glow *gl) {
     printf("timeout: %u\n", id);
 }
-*/
+
 void resize(unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, glow *gl) {
     printf("window size: %ux%u (%ux%u)\n", wW, wH, rW, rH);
 	glViewport(0, 0, rW, rH);
