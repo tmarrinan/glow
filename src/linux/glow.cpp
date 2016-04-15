@@ -356,25 +356,21 @@ void glow::runLoop() {
 							btn = GLOW_MOUSE_SCROLL;
 							dx = 0;
 							dy = 120;
-							printf("press btn 4 - scroll up\n");
 							break;
 						case Button5:
 							btn = GLOW_MOUSE_SCROLL;
 							dx = 0;
 							dy = -120;
-							printf("press btn 5 - scroll down\n");
 							break;
 						case Button6:
 							btn = GLOW_MOUSE_SCROLL;
 							dx = -120;
 							dy = 0;
-							printf("press btn 6 - scroll left\n");
 							break;
 						case Button7:
 							btn = GLOW_MOUSE_SCROLL;
 							dx = 120;
 							dy = 0;
-							printf("press btn 7 - scroll right\n");
 							break;
 						default:
 							btn = GLOW_MOUSE_BUTTON_UNKNOWN;
