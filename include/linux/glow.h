@@ -70,6 +70,7 @@ private:
     int mouseY;
 	unsigned int capsmask;
 	bool requiresRender;
+	Atom timeoutMessage;
 	unsigned int timerId;
 	timer_t timeoutTimers[GLOW_MAX_TIMERS];
 	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];

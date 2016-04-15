@@ -31,6 +31,8 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 		exit(1);
 	}
 
+	timeoutMessage = XInternAtom(display, "TIMEOUT", False);
+
 	// initialize freetype text rendering
 	if(FT_Init_FreeType(&ft)) fprintf(stderr, "Error: could not init freetype library\n");
 	offsetsFromUTF8[0] = 0x00000000UL;
@@ -191,9 +193,23 @@ void glow::cancelTimeout(unsigned int timeoutId) {
 
 void glow::timeoutTimerFired(union sigval arg) {
 	timer_data *data = (timer_data*)arg.sival_ptr;
+	Display *d = XOpenDisplay(NULL);
+	if (!display) {
+		fprintf(stderr, "Failed to open X display for timer: %d\n", data->timer_id);
+		return;
+	}
 	
 	// TODO: trigger custom x event and call callback from event loop
-	data->glow_ptr->timeoutCallbacks[data->timer_id](data->timer_id, data->glow_ptr);
+	XClientMessageEvent timeoutEvent;
+	timeoutEvent.type = ClientMessage;
+	timeoutEvent.window = data->glow_ptr->window;
+	timeoutEvent.message_type = data->glow_ptr->timeoutMessage;
+	timeoutEvent.format = 32;
+	timeoutEvent.data.l[0] = data->timer_id;
+	XSendEvent(d, data->glow_ptr->window, False, 0, (XEvent*)&timeoutEvent);
+	XFlush(d);
+
+	//data->glow_ptr->timeoutCallbacks[data->timer_id](data->timer_id, data->glow_ptr);
 	timer_delete(data->glow_ptr->timeoutTimers[data->timer_id]);
 	free(data);
 }
@@ -258,7 +274,7 @@ void glow::runLoop() {
 	bool isIdle = false;
 	bool running = true;
 	while (running) {
-		while (XPending(display)) {
+		do {
 			XNextEvent(display, &event);
 			if (event.xany.window != window) continue;
 		
@@ -325,7 +341,12 @@ void glow::runLoop() {
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
 						running = false;
 					}
+					else if (event.xclient.message_type == timeoutMessage) {
+						printf("client message - timeout\n");						
+						timeoutCallbacks[event.xclient.data.l[0]](event.xclient.data.l[0], this);
+					}
 					else if (event.xclient.message_type == idleMessage) {
+						//printf("client message - idle\n");
 						idleCallback(this);
 						isIdle = true;
 					}
@@ -333,7 +354,8 @@ void glow::runLoop() {
 				default:
 					break;
 			}
-		}
+		} while (XPending(display));
+
 		if (!running) break;
 
 		if (isIdle && idleCallback) {
