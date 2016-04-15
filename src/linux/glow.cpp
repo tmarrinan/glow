@@ -164,7 +164,7 @@ unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl)
 	struct sigevent se;
 	struct itimerspec ts;
 
-	timer_data *data = (timer_data*)malloc(sizeof(timer_data));
+	GLOW_TimerData *data = (GLOW_TimerData*)malloc(sizeof(GLOW_TimerData));
 	data->glow_ptr = this;
 	data->timer_id = tId;
 
@@ -192,7 +192,7 @@ void glow::cancelTimeout(unsigned int timeoutId) {
 }
 
 void glow::timeoutTimerFired(union sigval arg) {
-	timer_data *data = (timer_data*)arg.sival_ptr;
+	GLOW_TimerData *data = (GLOW_TimerData*)arg.sival_ptr;
 	Display *d = XOpenDisplay(NULL);
 	if (!d) {
 		fprintf(stderr, "Failed to open X display for timer: %d\n", data->timer_id);
@@ -500,7 +500,7 @@ void glow::convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* 
 	*target = ch;
 }
 
-void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<charGlyph> *glyphs) {
+void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs) {
 	int i = 0;
 	*width = 0;
 	unsigned char *unicode = (unsigned char*)text.c_str();
@@ -531,7 +531,7 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 		if (FT_Load_Glyph(face->face, glyph_index, FT_LOAD_RENDER))
 			continue;
 
-		glyphs->push_back(charGlyph());
+		glyphs->push_back(GLOW_CharGlyph());
 		int c = glyphs->size() - 1;
 		(*glyphs)[c].width = face->face->glyph->bitmap.width;
 		(*glyphs)[c].height = face->face->glyph->bitmap.rows;
@@ -549,7 +549,7 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 
 void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
 	int i, j, k;
-	std::vector<charGlyph> glyphs;
+	std::vector<GLOW_CharGlyph> glyphs;
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
 
@@ -582,7 +582,7 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 
 void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
 	int i, j, k;
-	std::vector<charGlyph> glyphs;
+	std::vector<GLOW_CharGlyph> glyphs;
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
 

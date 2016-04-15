@@ -135,7 +135,7 @@ void resize(unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, 
 	glViewport(0, 0, rW, rH);
 	gl->requestRenderFrame();
 }
-/*
+
 void onMouseDown(unsigned short button, int x, int y, glow *gl) {
     switch (button) {
         case GLOW_MOUSE_BUTTON_LEFT:
@@ -165,7 +165,7 @@ void onMouseMove(int x, int y, glow *gl) {
 void onScrollWheel(int dx, int dy, int x, int y, glow *gl) {
     printf("scroll wheel: %d %d (%d, %d)\n", dx, dy, x, y);
 }
-*/
+
 void onKeyDown(unsigned short key, int x, int y, glow *gl) {
     printf("keydown: %u [%c] (%d, %d)\n", key, (unsigned char)key, x, y);
 }

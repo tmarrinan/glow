@@ -32,24 +32,24 @@
 
 class glow;
 
-typedef struct timer_data {
+typedef struct GLOW_TimerData {
 	glow *glow_ptr;
 	unsigned int timer_id;
-} timer_data;
+} GLOW_TimerData;
 
 typedef struct GLOW_FontFace {
 	FT_Face face;
 	unsigned int size;
 } GLOW_FontFace;
 
-typedef struct charGlyph {
+typedef struct GLOW_CharGlyph {
 	unsigned int width;
 	unsigned int height;
 	unsigned char *pixels;
 	int left;
 	int top;
 	int advanceX;
-} charGlyph;
+} GLOW_CharGlyph;
 
 typedef void (*timer_func)(unsigned int timeoutId, glow *gl);
 
@@ -88,7 +88,7 @@ private:
 	static void timeoutTimerFired(union sigval arg);
 	unsigned short specialKey(KeySym code);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
-	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<charGlyph> *glyphs);
+	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs);
 public:
 	glow() {};
 	~glow() {};
