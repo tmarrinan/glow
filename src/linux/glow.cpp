@@ -180,7 +180,6 @@ unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl)
 
 	timeoutCallbacks[tId] = callback;
 
-	//timer_create(CLOCK_REALTIME, &se, &timeoutTimers[tId]);
 	timer_create(CLOCK_MONOTONIC, &se, &timeoutTimers[tId]);
 	timer_settime(timeoutTimers[tId], 0, &ts, NULL);
 	
@@ -195,12 +194,11 @@ void glow::cancelTimeout(unsigned int timeoutId) {
 void glow::timeoutTimerFired(union sigval arg) {
 	timer_data *data = (timer_data*)arg.sival_ptr;
 	Display *d = XOpenDisplay(NULL);
-	if (!display) {
+	if (!d) {
 		fprintf(stderr, "Failed to open X display for timer: %d\n", data->timer_id);
 		return;
 	}
 	
-	// TODO: trigger custom x event and call callback from event loop
 	XClientMessageEvent timeoutEvent;
 	timeoutEvent.type = ClientMessage;
 	timeoutEvent.window = data->glow_ptr->window;
@@ -210,7 +208,6 @@ void glow::timeoutTimerFired(union sigval arg) {
 	XSendEvent(d, data->glow_ptr->window, False, 0, (XEvent*)&timeoutEvent);
 	XFlush(d);
 
-	//data->glow_ptr->timeoutCallbacks[data->timer_id](data->timer_id, data->glow_ptr);
 	timer_delete(data->glow_ptr->timeoutTimers[data->timer_id]);
 	free(data);
 }
@@ -342,12 +339,10 @@ void glow::runLoop() {
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
 						running = false;
 					}
-					else if (event.xclient.message_type == timeoutMessage) {
-						printf("client message - timeout\n");						
+					else if (event.xclient.message_type == timeoutMessage) {						
 						timeoutCallbacks[event.xclient.data.l[0]](event.xclient.data.l[0], this);
 					}
 					else if (event.xclient.message_type == idleMessage) {
-						//printf("client message - idle\n");
 						idleCallback(this);
 						isIdle = true;
 					}
