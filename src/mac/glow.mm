@@ -195,7 +195,7 @@ void glow::convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* 
 	*target = ch;
 }
 
-void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<charGlyph> *glyphs) {
+void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs) {
 	int i = 0;
 	*width = 0;
 	unsigned char *unicode = (unsigned char*)text.c_str();
@@ -226,7 +226,7 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 		if (FT_Load_Glyph(face->face, glyph_index, FT_LOAD_RENDER))
 			continue;
 
-		glyphs->push_back(charGlyph());
+		glyphs->push_back(GLOW_CharGlyph());
 		int c = glyphs->size() - 1;
 		(*glyphs)[c].width = face->face->glyph->bitmap.width;
 		(*glyphs)[c].height = face->face->glyph->bitmap.rows;
@@ -244,7 +244,7 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 
 void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
 	int i, j, k;
-	std::vector<charGlyph> glyphs;
+	std::vector<GLOW_CharGlyph> glyphs;
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
 
@@ -277,7 +277,7 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 
 void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
 	int i, j, k;
-	std::vector<charGlyph> glyphs;
+	std::vector<GLOW_CharGlyph> glyphs;
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
 

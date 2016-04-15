@@ -36,14 +36,14 @@ typedef struct GLOW_FontFace {
 	unsigned int size;
 } GLOW_FontFace;
 
-typedef struct charGlyph {
+typedef struct GLOW_CharGlyph {
 	unsigned int width;
 	unsigned int height;
 	unsigned char *pixels;
 	int left;
 	int top;
 	int advanceX;
-} charGlyph;
+} GLOW_CharGlyph;
 
 class glow {
 private:
@@ -59,7 +59,7 @@ private:
 	uint32_t offsetsFromUTF8[4];
 
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
-	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<charGlyph> *glyphs);
+	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs);
 
 public:
 	glow() {};
