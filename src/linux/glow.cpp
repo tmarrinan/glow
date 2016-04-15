@@ -199,11 +199,6 @@ void glow::timeoutTimerFired(union sigval arg) {
 	GLOW_TimerData *data = (GLOW_TimerData*)arg.sival_ptr;
 
 	XLockDisplay(data->glow_ptr->display);
-	/*Display *d = XOpenDisplay(NULL);
-	if (!d) {
-		fprintf(stderr, "Failed to open X display for timer: %d\n", data->timer_id);
-		return;
-	}*/
 	
 	XClientMessageEvent timeoutEvent;
 	timeoutEvent.type = ClientMessage;
