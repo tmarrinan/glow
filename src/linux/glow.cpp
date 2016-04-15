@@ -18,6 +18,10 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	resizeCallback = NULL;
 	keyDownCallback = NULL;
 	keyUpCallback = NULL;
+
+	if (XInitThreads() == 0) {
+		fprintf(stderr, "Failed to initialize X\n");
+	}
 	
 	display = XOpenDisplay(NULL);
 	if (!display) {
@@ -193,11 +197,13 @@ void glow::cancelTimeout(unsigned int timeoutId) {
 
 void glow::timeoutTimerFired(union sigval arg) {
 	GLOW_TimerData *data = (GLOW_TimerData*)arg.sival_ptr;
-	Display *d = XOpenDisplay(NULL);
+
+	XLockDisplay(data->glow_ptr->display);
+	/*Display *d = XOpenDisplay(NULL);
 	if (!d) {
 		fprintf(stderr, "Failed to open X display for timer: %d\n", data->timer_id);
 		return;
-	}
+	}*/
 	
 	XClientMessageEvent timeoutEvent;
 	timeoutEvent.type = ClientMessage;
@@ -205,8 +211,10 @@ void glow::timeoutTimerFired(union sigval arg) {
 	timeoutEvent.message_type = data->glow_ptr->timeoutMessage;
 	timeoutEvent.format = 32;
 	timeoutEvent.data.l[0] = data->timer_id;
-	XSendEvent(d, data->glow_ptr->window, False, 0, (XEvent*)&timeoutEvent);
-	XFlush(d);
+	XSendEvent(data->glow_ptr->display, data->glow_ptr->window, False, 0, (XEvent*)&timeoutEvent);
+	XFlush(data->glow_ptr->display);
+
+	XUnlockDisplay(data->glow_ptr->display);
 
 	timer_delete(data->glow_ptr->timeoutTimers[data->timer_id]);
 	free(data);
@@ -275,7 +283,8 @@ void glow::runLoop() {
 		do {
 			XNextEvent(display, &event);
 			if (event.xany.window != window) continue;
-		
+			XLockDisplay(display);		
+
 			switch (event.type) {
 				case MapNotify:
 					requiresRender = true;
@@ -350,11 +359,13 @@ void glow::runLoop() {
 				default:
 					break;
 			}
+			XUnlockDisplay(display);
 		} while (XPending(display));
 
 		if (!running) break;
 
 		if (isIdle && idleCallback) {
+			XLockDisplay(display);
 			isIdle = false;
 			XClientMessageEvent idleEvent;
 			idleEvent.type = ClientMessage;
@@ -363,6 +374,7 @@ void glow::runLoop() {
 			idleEvent.format = 32;
 			idleEvent.data.l[0] = 0;
 			XSendEvent(display, window, False, 0, (XEvent*)&idleEvent);
+			XUnlockDisplay(display);
 		}
 		if (requiresRender && renderCallback) {
 			struct timeval tp;

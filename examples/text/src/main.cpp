@@ -128,6 +128,7 @@ void idle(glow *gl) {
 
 void timeout(unsigned int id, glow *gl) {
     printf("timeout: %u\n", id);
+	gl->requestRenderFrame();
 }
 
 void resize(unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, glow *gl) {
