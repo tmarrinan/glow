@@ -180,7 +180,8 @@ unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl)
 
 	timeoutCallbacks[tId] = callback;
 
-	timer_create(CLOCK_REALTIME, &se, &timeoutTimers[tId]);
+	//timer_create(CLOCK_REALTIME, &se, &timeoutTimers[tId]);
+	timer_create(CLOCK_MONOTONIC, &se, &timeoutTimers[tId]);
 	timer_settime(timeoutTimers[tId], 0, &ts, NULL);
 	
 	timerId = (timerId + 1) % GLOW_MAX_TIMERS;
