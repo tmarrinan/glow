@@ -32,12 +32,11 @@ int main (int argc, char **argv) {
     gl->initialize(GLOW_OPENGL_LEGACY, GLOW_BASE_WINDOW);
     gl->createWindow("TEST", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 800, 640);
 
-/*
     gl->mouseDownListener(onMouseDown);
     gl->mouseUpListener(onMouseUp);
     gl->mouseMoveListener(onMouseMove);
     gl->scrollWheelListener(onScrollWheel);
-*/    gl->keyDownListener(onKeyDown);
+    gl->keyDownListener(onKeyDown);
     gl->keyUpListener(onKeyUp);
 
     gl->renderFunction(display);

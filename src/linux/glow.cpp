@@ -18,6 +18,10 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 	resizeCallback = NULL;
 	keyDownCallback = NULL;
 	keyUpCallback = NULL;
+	mouseDownCallback = NULL;
+	mouseUpCallback = NULL;
+	mouseMoveCallback = NULL;
+	scrollWheelCallback = NULL;
 
 	if (XInitThreads() == 0) {
 		fprintf(stderr, "Failed to initialize X\n");
@@ -101,7 +105,7 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	swa.colormap = cmap;
 	swa.background_pixmap = None;
 	swa.border_pixel = 0;
-	swa.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask;
+	swa.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ButtonMotionMask;
 
 	window = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, (CWBorderPixel | CWColormap | CWEventMask), &swa);
 	if (!window) {
@@ -214,27 +218,23 @@ void glow::timeoutTimerFired(union sigval arg) {
 	timer_delete(data->glow_ptr->timeoutTimers[data->timer_id]);
 	free(data);
 }
-/*
+
 void glow::mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view mouseDownListener:callback];
+	mouseDownCallback = callback;
 }
 
 void glow::mouseUpListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view mouseUpListener:callback];
+	mouseUpCallback = callback;
 }
 
 void glow::mouseMoveListener(void (*callback)(int x, int y, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view mouseMoveListener:callback];
+	mouseMoveCallback = callback;
 }
 
 void glow::scrollWheelListener(void (*callback)(int dx, int dy, int x, int y, glow *gl)) {
-	glView* view = (glView*)[glContext view];
-	[view scrollWheelListener:callback];
+	scrollWheelCallback = callback;
 }
-*/
+
 void glow::keyDownListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
 	keyDownCallback = callback;
 }
@@ -264,6 +264,9 @@ void glow::runLoop() {
 
 	bool initWindowPlacement = false;
 
+	unsigned short btn;
+	int dx;
+	int dy;
 	int charcount;
 	char buffer[20];
 	int bufsize = 20;
@@ -338,6 +341,72 @@ void glow::runLoop() {
 							keyUpCallback(specialKey(keysym), mouseX, mouseY, this);
 						}
 					}
+					break;
+				case ButtonPress:
+					if (!mouseDownCallback && !scrollWheelCallback) break;
+
+					switch (event.xbutton.button) {
+						case Button1:
+							btn = GLOW_MOUSE_BUTTON_LEFT;
+							break;
+						case Button3:
+							btn = GLOW_MOUSE_BUTTON_RIGHT;
+							break;
+						case Button4:
+							btn = GLOW_MOUSE_SCROLL;
+							dx = 0;
+							dy = 120;
+							printf("press btn 4 - scroll up\n");
+							break;
+						case Button5:
+							btn = GLOW_MOUSE_SCROLL;
+							dx = 0;
+							dy = -120;
+							printf("press btn 5 - scroll down\n");
+							break;
+						case Button6:
+							btn = GLOW_MOUSE_SCROLL;
+							dx = -120;
+							dy = 0;
+							printf("press btn 6 - scroll left\n");
+							break;
+						case Button7:
+							btn = GLOW_MOUSE_SCROLL;
+							dx = 120;
+							dy = 0;
+							printf("press btn 7 - scroll right\n");
+							break;
+						default:
+							btn = GLOW_MOUSE_BUTTON_UNKNOWN;
+							break;
+					}
+					if (btn == GLOW_MOUSE_SCROLL && scrollWheelCallback)
+						scrollWheelCallback(dx, dy, mouseX, mouseY, this); 
+					else if (btn != GLOW_MOUSE_BUTTON_UNKNOWN && mouseDownCallback)
+						mouseDownCallback(btn, mouseX, mouseY, this);
+					break;
+				case ButtonRelease:
+					if (!mouseUpCallback) break;
+
+					switch (event.xbutton.button) {
+						case Button1:
+							btn = GLOW_MOUSE_BUTTON_LEFT;
+							break;
+						case Button3:
+							btn = GLOW_MOUSE_BUTTON_RIGHT;
+							break;
+						default:
+							btn = GLOW_MOUSE_BUTTON_UNKNOWN;
+							break;
+					}
+					if (btn != GLOW_MOUSE_BUTTON_UNKNOWN) mouseUpCallback(btn, mouseX, mouseY, this);
+					break;
+				case MotionNotify:
+					mouseX = event.xmotion.x;
+					mouseY = event.xmotion.y;
+					if (!mouseMoveCallback) break;
+
+					mouseMoveCallback(mouseX, mouseY, this);
 					break;
 				case ClientMessage:
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {

@@ -21,6 +21,13 @@
 
 #include "glowEvents.h"
 
+#ifndef Button6
+#define Button6 6
+#endif
+#ifndef Button7
+#define Button7 7
+#endif
+
 #define GLOW_MAX_TIMERS 128
 
 #define GLOW_OPENGL_LEGACY 0
@@ -80,6 +87,10 @@ private:
 	void (*resizeCallback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl);
 	void (*keyDownCallback)(unsigned short key, int x, int y, glow *gl);
 	void (*keyUpCallback)(unsigned short key, int x, int y, glow *gl);
+	void (*mouseDownCallback)(unsigned short button, int x, int y, glow *gl);
+	void (*mouseUpCallback)(unsigned short button, int x, int y, glow *gl);
+	void (*mouseMoveCallback)(int x, int y, glow *gl);
+	void (*scrollWheelCallback)(int dx, int dy, int x, int y, glow *gl);
 
 	FT_Library ft;
 
