@@ -4,10 +4,12 @@
 #include <windows.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <GL/glext.h>
 
 #include <iostream>
 #include <string>
 #include <vector>
+#include <inttypes.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
@@ -23,6 +25,13 @@
 #define GLOW_CENTER_HORIZONTAL INT_MAX
 #define GLOW_CENTER_VERTICAL INT_MAX
 
+class glow;
+
+typedef struct GLOW_TimerData {
+	glow *glow_ptr;
+	unsigned int timer_id;
+} GLOW_TimerData;
+
 typedef struct GLOW_FontFace {
 	FT_Face face;
 	unsigned int size;
@@ -37,11 +46,14 @@ typedef struct GLOW_CharGlyph {
 	int advanceX;
 } GLOW_CharGlyph;
 
+typedef void(*timer_func)(unsigned int timeoutId, glow *gl);
+
 class glow {
 private:
-	Display *display;
-	Window window;
-	GLXContext ctx;
+	HDC display;
+	HWND window;
+	HGLRC ctx;
+
 	unsigned int glProfile;
 	unsigned int hiDPISupport;
 	int prevX;
@@ -52,9 +64,8 @@ private:
     int mouseY;
 	unsigned int capsmask;
 	bool requiresRender;
-	Atom timeoutMessage;
 	unsigned int timerId;
-	timer_t timeoutTimers[GLOW_MAX_TIMERS];
+	//timer_t timeoutTimers[GLOW_MAX_TIMERS];
 	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];
 
 	void (*renderCallback)(unsigned long t, unsigned int dt, glow *gl);
@@ -71,8 +82,9 @@ private:
 
 	uint32_t offsetsFromUTF8[4];
 
-	static void timeoutTimerFired(union sigval arg);
-	unsigned short specialKey(KeySym code);
+	//static void timeoutTimerFired(union sigval arg);
+	static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	unsigned short specialKey(unsigned int code);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
 	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs);
 public:

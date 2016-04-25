@@ -20,7 +20,8 @@ void onKeyUp(unsigned short key, int x, int y, glow *gl);
 unsigned int fontTex[2];
 
 int main (int argc, char **argv) {
-	if (strcmp(argv[0], "./text/text") != 0) {
+	printf("%s\n", argv[0]);
+	if (strcmp(argv[0], "./text/text") != 0 && strcmp(argv[0], ".\\text\\text\\Debug\\text.exe") != 0) {
 		printf(" program designed to be run from \'examples\' directory.\n");
 		printf(" please cd to '<glow_dir>/examples' and run ./text/text\n");
 		exit(1);
@@ -31,6 +32,8 @@ int main (int argc, char **argv) {
     //gl->initialize(GLOW_OPENGL_3_2_CORE, GLOW_HIDPI_WINDOW);
     gl->initialize(GLOW_OPENGL_LEGACY, GLOW_BASE_WINDOW);
     gl->createWindow("TEST", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 800, 640);
+
+	printf("initialized\n");
 
     gl->mouseDownListener(onMouseDown);
     gl->mouseUpListener(onMouseUp);
@@ -43,11 +46,15 @@ int main (int argc, char **argv) {
     gl->idleFunction(idle);
     gl->resizeFunction(resize);
 
+	printf("callbacks set\n");
+
     unsigned int t1 = gl->setTimeout(timeout, 5000);
     unsigned int t2 = gl->setTimeout(timeout, 1000);
     unsigned int t3 = gl->setTimeout(timeout, 2000);
 
     gl->cancelTimeout(t2);
+
+	printf("attempted timers\n");
 
     string version, shadingVersion;
     gl->getGLVersions(&version, &shadingVersion);

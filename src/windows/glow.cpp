@@ -30,7 +30,62 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 }
 
 void glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height) {	
+	wchar_t *glClass = L"GLClass";
+	std::wstring wtitle = std::wstring(title.begin(), title.end());
+	HINSTANCE hinst = GetModuleHandle(NULL);
+
+	WNDCLASSEX ex;
+	ex.cbSize = sizeof(WNDCLASSEX);
+	ex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	ex.lpfnWndProc = wndProc;
+	ex.cbClsExtra = 0;
+	ex.cbWndExtra = 0;
+	ex.hInstance = hinst;
+	ex.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	ex.hCursor = LoadIcon(NULL, IDC_ARROW);
+	ex.hbrBackground = NULL;
+	ex.lpszMenuName = NULL;
+	ex.lpszClassName = glClass;
+	ex.hIconSm = NULL;
+	RegisterClassEx(&ex);
+
+	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
+	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+
+	window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPED | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
 	
+	display = GetDC(window);
+	if (display == NULL) {
+		fprintf(stderr, "ERROR getting window device context\n");
+		exit(1);
+	}
+
+	int indexPixelFormat = 0;
+	PIXELFORMATDESCRIPTOR pfd = {
+		sizeof(PIXELFORMATDESCRIPTOR),
+		1,
+		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+		PFD_TYPE_RGBA,
+		32,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		16,
+		0, 0, 0, 0, 0, 0, 0
+	};
+	indexPixelFormat = ChoosePixelFormat(display, &pfd);
+	SetPixelFormat(display, indexPixelFormat, &pfd);
+
+	ctx = wglCreateContext(display);
+	if (ctx == NULL) {
+		fprintf(stderr, "ERROR creating OpenGL rendering context\n");
+		exit(1);
+	}
+	if (wglMakeCurrent(display, ctx) == 0) {
+		fprintf(stderr, "ERROR making OpenGL rendering context current\n");
+		exit(1);
+	}
+
+	ShowWindow(window, SW_SHOW);
+	UpdateWindow(window);
 }
 
 void glow::renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl)) {
@@ -78,10 +133,11 @@ void glow::cancelTimeout(unsigned int timeoutId) {
 	
 }
 
+/*
 void glow::timeoutTimerFired(union sigval arg) {
 	
 }
-
+*/
 void glow::mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
 	mouseDownCallback = callback;
 }
@@ -115,14 +171,34 @@ void glow::requestRenderFrame() {
 }
 
 void glow::runLoop() {
-	
+	system("pause");
 }
 
-unsigned short glow::specialKey(KeySym code) {
+LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+	switch (msg) {
+		case WM_CREATE:
+			self = (glow*)(((CREATESTRUCT*)lParam)->lpCreateParams);
+			SetWindowLongPtr(hwnd, GWLP_USERDATA, (long)self);
+			break;
+		case WM_CLOSE:
+			DestroyWindow(hwnd);
+			break;
+		case WM_DESTROY:
+			PostQuitMessage(0);
+			break;
+		default:
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+	}
+	return 0;
+}
+
+unsigned short glow::specialKey(unsigned int code) {
 	unsigned short key;
-    /*
+    
 	switch (code) {
-        case XK_Shift_L:
+        /*case XK_Shift_L:
             key = GLOW_KEY_LEFT_SHIFT;
             break;
 		case XK_Shift_R:
@@ -196,13 +272,13 @@ unsigned short glow::specialKey(KeySym code) {
             break;
         case XK_Up:
             key = GLOW_KEY_UP_ARROW;
-            break;
+            break;*/
         default:
 			printf("unknown: %lu\n", code);
             key = GLOW_KEY_NONE;
             break;
     }
-	*/
+	
     return key;
 }
 
@@ -358,6 +434,7 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 }
 
 void glow::getGLVersions(std::string *glv, std::string *glslv) {
+	printf("version: %u, %u\n", this, ctx);
 	std::string version = (const char *)glGetString(GL_VERSION);
 
     int i;
