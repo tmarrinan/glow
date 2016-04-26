@@ -1,5 +1,9 @@
 #include "glow.h"
 
+PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = NULL;
+PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
+PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = NULL;
+PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = NULL;
 
 // GLOW C++ Interface
 void glow::initialize(unsigned int profile, unsigned int hidpi) {
@@ -42,7 +46,7 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	ex.cbWndExtra = 0;
 	ex.hInstance = hinst;
 	ex.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	ex.hCursor = LoadIcon(NULL, IDC_ARROW);
+	ex.hCursor = LoadCursor(NULL, IDC_ARROW);
 	ex.hbrBackground = NULL;
 	ex.lpszMenuName = NULL;
 	ex.lpszClassName = glClass;
@@ -52,8 +56,8 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
 
-	window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPED | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
-	
+	window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
+
 	display = GetDC(window);
 	if (display == NULL) {
 		fprintf(stderr, "ERROR getting window device context\n");
@@ -61,16 +65,26 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	}
 
 	int indexPixelFormat = 0;
+	unsigned int numPixelFormats;
 	PIXELFORMATDESCRIPTOR pfd = {
 		sizeof(PIXELFORMATDESCRIPTOR),
 		1,
 		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
 		PFD_TYPE_RGBA,
 		32,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		16,
-		0, 0, 0, 0, 0, 0, 0
+		0, 0, 0, 0, 0, 0,
+		0,
+		0,
+		0,
+		0, 0, 0, 0,
+		24,
+		8,
+		0,
+		PFD_MAIN_PLANE,
+		0,
+		0, 0, 0
 	};
+	
 	indexPixelFormat = ChoosePixelFormat(display, &pfd);
 	SetPixelFormat(display, indexPixelFormat, &pfd);
 
@@ -82,6 +96,55 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	if (wglMakeCurrent(display, ctx) == 0) {
 		fprintf(stderr, "ERROR making OpenGL rendering context current\n");
 		exit(1);
+	}
+
+	if (glProfile == GLOW_OPENGL_3_2_CORE) {
+		wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+		wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+		wglGetExtensionsStringARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
+
+		if (wglGetExtensionsStringARB == NULL) {
+			fprintf(stderr, "ERROR OpenGL 3.2 not supported on this system\n");
+			exit(1);
+		}
+
+		wglMakeCurrent(display, NULL);
+		wglDeleteContext(ctx);
+
+		const int iPixelFormatAttribList[] = {
+			WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+			WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+			WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+			WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+			WGL_COLOR_BITS_ARB, 32,
+			WGL_DEPTH_BITS_ARB, 24,
+			WGL_STENCIL_BITS_ARB, 8,
+			0
+		};
+		int iContextAttribs[] = {
+			WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+			WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+			WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+			0
+		};
+
+		std::string wext = wglGetExtensionsStringARB(display);
+		printf("%s\n", wext.c_str());
+
+		wglChoosePixelFormatARB(display, iPixelFormatAttribList, NULL,1, &indexPixelFormat, &numPixelFormats);
+		printf("index pixel format: %d (%u)\n", indexPixelFormat, numPixelFormats);
+		SetPixelFormat(display, indexPixelFormat, &pfd);
+
+		ctx = wglCreateContextAttribsARB(display, 0, iContextAttribs);
+		if (ctx == NULL) {
+			fprintf(stderr, "ERROR creating OpenGL rendering context\n");
+			exit(1);
+		}
+		if (wglMakeCurrent(display, ctx) == 0) {
+			fprintf(stderr, "ERROR making OpenGL rendering context current\n");
+			exit(1);
+		}
 	}
 
 	ShowWindow(window, SW_SHOW);
@@ -163,7 +226,7 @@ void glow::keyUpListener(void (*callback)(unsigned short key, int x, int y, glow
 }
 
 void glow::swapBuffers() {
-	
+	SwapBuffers(display);
 }
 
 void glow::requestRenderFrame() {
@@ -171,11 +234,19 @@ void glow::requestRenderFrame() {
 }
 
 void glow::runLoop() {
-	system("pause");
+	if (renderCallback) renderCallback(0, 0, this);
+
+	MSG message;
+	while (GetMessage(&message, NULL, 0, 0) > 0) {
+		TranslateMessage(&message);
+		DispatchMessage(&message);
+	}
 }
 
 LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+	unsigned short key;
 
 	switch (msg) {
 		case WM_CREATE:
@@ -188,93 +259,280 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			break;
+		case WM_KEYDOWN:
+		case WM_SYSKEYDOWN:
+			if (!self->keyDownCallback && !self->keyUpCallback) break;
+
+			key = translateKey(wParam, lParam);
+			if (key == GLOW_KEY_CAPS_LOCK && !(GetKeyState(VK_CAPITAL) & 0x0001)) {
+				if (self->keyUpCallback) self->keyUpCallback(key, 0, 0, self);
+			}
+			else {
+				if (self->keyDownCallback) self->keyDownCallback(key, 0, 0, self);
+			}
+			break;
+		case WM_KEYUP:
+		case WM_SYSKEYUP:
+			if (!self->keyUpCallback) break;
+
+			key = translateKey(wParam, lParam);
+			if (key != GLOW_KEY_CAPS_LOCK)
+				self->keyUpCallback(key, 0, 0, self);
+			break;
 		default:
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 	return 0;
 }
-
-unsigned short glow::specialKey(unsigned int code) {
+unsigned short glow::translateKey(WPARAM vk, LPARAM lParam) {
 	unsigned short key;
+	bool capslock;
+	bool shift;
+	
+	switch (vk) {
+		case VK_BACK:
+			key = 8;
+			break;
+		case VK_TAB:
+			key = 9;
+			break;
+		case VK_RETURN:
+			key = 13;
+			break;
+		case VK_ESCAPE:
+			key = 27;
+			break;
+		case VK_SPACE:
+			key = 32;
+			break;
+		case VK_DELETE:
+			key = 127;
+			break;
+		case 0x30:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 41;
+			else                                key = vk;
+			break;
+		case 0x31:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 33;
+			else                                key = vk;
+			break;
+		case 0x32:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 64;
+			else                                key = vk;
+			break;
+		case 0x33:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 35;
+			else                                key = vk;
+			break;
+		case 0x34:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 36;
+			else                                key = vk;
+			break;
+		case 0x35:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 37;
+			else                                key = vk;
+			break;
+		case 0x36:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 94;
+			else                                key = vk;
+			break;
+		case 0x37:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 38;
+			else                                key = vk;
+			break;
+		case 0x38:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 42;
+			else                                key = vk;
+			break;
+		case 0x39:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 40;
+			else                                key = vk;
+			break;
+		case 0x41:
+		case 0x42:
+		case 0x43:
+		case 0x44:
+		case 0x45:
+		case 0x46:
+		case 0x47:
+		case 0x48:
+		case 0x49:
+		case 0x4A:
+		case 0x4B:
+		case 0x4C:
+		case 0x4D:
+		case 0x4E:
+		case 0x4F:
+		case 0x50:
+		case 0x51:
+		case 0x52:
+		case 0x53:
+		case 0x54:
+		case 0x55:
+		case 0x56:
+		case 0x57:
+		case 0x58:
+		case 0x59:
+		case 0x5A:
+			if (GetKeyState(VK_CAPITAL) & 0x0001) capslock = true;
+			else                                  capslock = false;
+			if (GetKeyState(VK_SHIFT) & 0x8000)   shift = true;
+			else                                  shift = false;
+			if (capslock ^ shift) // xor
+				key = (unsigned short)vk;
+			else
+				key = (unsigned short)vk + 32;
+			break;
+		case VK_OEM_PLUS:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 43;
+			else                                key = 61;
+			break;
+		case VK_OEM_COMMA:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 60;
+			else                                key = 44;
+			break;
+		case VK_OEM_MINUS:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 95;
+			else                                key = 45;
+			break;
+		case VK_OEM_PERIOD:
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 62;
+			else                                key = 46;
+			break;
+		case VK_OEM_1: // ';', ':'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 58;
+			else                                key = 59;
+			break;
+		case VK_OEM_2: // '/', '?'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 63;
+			else                                key = 47;
+			break;
+		case VK_OEM_3: // '`', '~'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 126;
+			else                                key = 96;
+			break;
+		case VK_OEM_4: // '[', '{'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 123;
+			else                                key = 91;
+			break;
+		case VK_OEM_5: // '\', '|'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 124;
+			else                                key = 92;
+			break;
+		case VK_OEM_6: // ']', '}'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 125;
+			else                                key = 93;
+			break;
+		case VK_OEM_7: // ''', '"'
+			if (GetKeyState(VK_SHIFT) & 0x8000) key = 34;
+			else                                key = 39;
+			break;
+		default:
+			key = specialKey(vk, lParam);
+			break;
+	}
+	return key;
+}
+
+unsigned short glow::specialKey(WPARAM vk, LPARAM lParam) {
+	unsigned short key;
+
+	WPARAM newVk;
+	UINT scancode = (lParam & 0x00ff0000) >> 16;
+	int extended = (lParam & 0x01000000) != 0;
+	switch (vk) {
+		case VK_SHIFT:
+			newVk = MapVirtualKey(scancode, MAPVK_VSC_TO_VK_EX);
+			break;
+		case VK_CONTROL:
+			newVk = extended ? VK_RCONTROL : VK_LCONTROL;
+			break;
+		case VK_MENU:
+			newVk = extended ? VK_RMENU : VK_LMENU;
+			break;
+		default:
+			newVk = vk;
+			break;
+	}
     
-	switch (code) {
-        /*case XK_Shift_L:
+	switch (newVk) {
+        case VK_LSHIFT:
             key = GLOW_KEY_LEFT_SHIFT;
             break;
-		case XK_Shift_R:
+		case VK_RSHIFT:
             key = GLOW_KEY_RIGHT_SHIFT;
             break;
-		case XK_Control_L:
+		case VK_LCONTROL:
             key = GLOW_KEY_LEFT_CONTROL;
             break;
-		case XK_Control_R:
+		case VK_RCONTROL:
             key = GLOW_KEY_RIGHT_CONTROL;
             break;
-		case XK_Alt_L:
+		case VK_LMENU:
             key = GLOW_KEY_LEFT_ALT;
             break;
-		case XK_Alt_R:
+		case VK_RMENU:
             key = GLOW_KEY_RIGHT_ALT;
             break;
-		case XK_Super_L:
+		case VK_LWIN:
             key = GLOW_KEY_LEFT_COMMAND;
             break;
-		case XK_Super_R:
+		case VK_RWIN:
             key = GLOW_KEY_RIGHT_COMMAND;
             break;
-        case XK_Caps_Lock:
+        case VK_CAPITAL:
             key = GLOW_KEY_CAPS_LOCK;
             break;
-        case XK_F1:
+        case VK_F1:
             key = GLOW_KEY_F1;
             break;
-        case XK_F2:
+        case VK_F2:
             key = GLOW_KEY_F2;
             break;
-        case XK_F3:
+        case VK_F3:
             key = GLOW_KEY_F3;
             break;
-        case XK_F4:
+        case VK_F4:
             key = GLOW_KEY_F4;
             break;
-        case XK_F5:
+        case VK_F5:
             key = GLOW_KEY_F5;
             break;
-        case XK_F6:
+        case VK_F6:
             key = GLOW_KEY_F6;
             break;
-        case XK_F7:
+        case VK_F7:
             key = GLOW_KEY_F7;
             break;
-        case XK_F8:
+        case VK_F8:
             key = GLOW_KEY_F8;
             break;
-        case XK_F9:
+        case VK_F9:
             key = GLOW_KEY_F9;
             break;
-        case XK_F10:
+        case VK_F10:
             key = GLOW_KEY_F10;
             break;
-        case XK_F11:
+        case VK_F11:
             key = GLOW_KEY_F11;
             break;
-        case XK_F12:
+        case VK_F12:
             key = GLOW_KEY_F12;
             break;
-        case XK_Left:
+        case VK_LEFT:
             key = GLOW_KEY_LEFT_ARROW;
             break;
-        case XK_Right:
+        case VK_RIGHT:
             key = GLOW_KEY_RIGHT_ARROW;
             break;
-        case XK_Down:
+        case VK_DOWN:
             key = GLOW_KEY_DOWN_ARROW;
             break;
-        case XK_Up:
+        case VK_UP:
             key = GLOW_KEY_UP_ARROW;
-            break;*/
+            break;
         default:
-			printf("unknown: %lu\n", code);
+			printf("unknown: %lu\n", newVk);
             key = GLOW_KEY_NONE;
             break;
     }
@@ -318,7 +576,7 @@ void glow::convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* 
 }
 
 void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs) {
-	int i = 0;
+	unsigned int i = 0;
 	*width = 0;
 	unsigned char *unicode = (unsigned char*)text.c_str();
 	do {
@@ -365,7 +623,7 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 }
 
 void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
-	int i, j, k;
+	unsigned int i, j, k;
 	std::vector<GLOW_CharGlyph> glyphs;
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
@@ -398,7 +656,7 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 }
 
 void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
-	int i, j, k;
+	unsigned int i, j, k;
 	std::vector<GLOW_CharGlyph> glyphs;
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
@@ -434,10 +692,8 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 }
 
 void glow::getGLVersions(std::string *glv, std::string *glslv) {
-	printf("version: %u, %u\n", this, ctx);
 	std::string version = (const char *)glGetString(GL_VERSION);
-
-    int i;
+    unsigned int i;
     int end = 0;
     int dot = 0;
     for (i=0; i<version.length(); i++){

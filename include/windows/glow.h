@@ -5,6 +5,7 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glext.h>
+#include <GL/wglext.h>
 
 #include <iostream>
 #include <string>
@@ -48,6 +49,10 @@ typedef struct GLOW_CharGlyph {
 
 typedef void(*timer_func)(unsigned int timeoutId, glow *gl);
 
+extern PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
+extern PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
+extern PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB;
+
 class glow {
 private:
 	HDC display;
@@ -84,7 +89,8 @@ private:
 
 	//static void timeoutTimerFired(union sigval arg);
 	static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	unsigned short specialKey(unsigned int code);
+	static unsigned short translateKey(WPARAM vk, LPARAM lParam);
+	static unsigned short specialKey(WPARAM vk, LPARAM lParam);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
 	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs);
 public:

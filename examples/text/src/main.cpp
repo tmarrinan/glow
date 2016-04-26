@@ -178,6 +178,6 @@ void onKeyDown(unsigned short key, int x, int y, glow *gl) {
 }
 
 void onKeyUp(unsigned short key, int x, int y, glow *gl) {
-    printf("keyup: %u [%c] (%d, %d)\n", key, (unsigned char)key, x, y);
+	printf("keyup: %u [%c] (%d, %d)\n", key, (unsigned char)key, x, y);
 }
 
