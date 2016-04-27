@@ -107,6 +107,11 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 			fprintf(stderr, "ERROR OpenGL 3.2 not supported on this system\n");
 			exit(1);
 		}
+		std::string ext = wglGetExtensionsStringARB(display);
+		if (ext.find("WGL_ARB_create_context") == std::string::npos) {
+			fprintf(stderr, "ERROR OpenGL 3.2 not supported on this system\n");
+			exit(1);
+		}
 
 		wglMakeCurrent(display, NULL);
 		wglDeleteContext(ctx);
@@ -692,21 +697,24 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 }
 
 void glow::getGLVersions(std::string *glv, std::string *glslv) {
-	std::string version = (const char *)glGetString(GL_VERSION);
-    unsigned int i;
-    int end = 0;
-    int dot = 0;
-    for (i=0; i<version.length(); i++){
-        if (version[i] == '.') {
-            dot++;
-            if (dot == 1) continue;
-        }
-        if (version[i] < 48 || version[i] > 57) {
-            end = i;
-            break;
-        }
-    }
+	std::string *v[2] = {glv, glslv};
+	GLenum type[2] = { GL_VERSION, GL_SHADING_LANGUAGE_VERSION };
 
-    *glv = version.substr(0, end);
-    *glslv = (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
+    unsigned int i, j;
+	for (i = 0; i < 2; i++) {
+		std::string version = (const char*)glGetString(type[i]);
+		int end = 0;
+		int dot = 0;
+		for (j=0; j<version.length(); j++){
+			if (version[j] == '.') {
+				dot++;
+				if (dot == 1) continue;
+			}
+			if (version[j] < 48 || version[j] > 57) {
+				end = j;
+				break;
+			}
+		}
+		*(v[i]) = version.substr(0, end);
+	}
 }
