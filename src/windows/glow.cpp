@@ -249,7 +249,7 @@ void glow::runLoop() {
 		}
 		if (requiresRender && renderCallback) {
 			ULONGLONG now = GetTickCount64();
-			renderCallback(now - startTime, now - prevTime, this);
+			renderCallback((unsigned long)(now - startTime), (unsigned int)(now - prevTime), this);
 			prevTime = now;
 			requiresRender = false;
 		}

@@ -54,8 +54,8 @@ int main (int argc, char **argv) {
     printf("Using OpenGL: %s, GLSL: %s\n", version.c_str(), shadingVersion.c_str());
 
     string test1 = "的 uni";
-    string test2 = "\xe7\x9a\x84 code \U00007684";
-    printf("%s %s\n", test1.c_str(), test2.c_str());
+	string test2 = "\xe7\x9a\x84 code \U00007684"; // \U unicode not working for Windows
+	printf("%s %s\n", test1.c_str(), test2.c_str());
 
     GLOW_FontFace *face;
     unsigned char *textPx1, *textPx2;
@@ -96,7 +96,7 @@ int main (int argc, char **argv) {
 void display(unsigned long t, unsigned int dt, glow *gl) {
     //printf("render: t=%.3f, dt=%.3f\n", (float)t/1000.0, (float)dt/1000.0);
 
-    float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0;
+    float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
     glClearColor(c, c, c, 1.0);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -104,17 +104,17 @@ void display(unsigned long t, unsigned int dt, glow *gl) {
 
     glBindTexture(GL_TEXTURE_2D, fontTex[0]);
     glBegin(GL_QUADS);
-        glTexCoord2f(0.0, 0.0); glVertex2f(-1.00, -0.19);
-        glTexCoord2f(1.0, 0.0); glVertex2f(-0.25, -0.19);
-        glTexCoord2f(1.0, 1.0); glVertex2f(-0.25,  0.19);
-        glTexCoord2f(0.0, 1.0); glVertex2f(-1.00,  0.19);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.00f, -0.19f);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f(-0.25f, -0.19f);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f(-0.25f,  0.19f);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.00f,  0.19f);
     glEnd();
     glBindTexture(GL_TEXTURE_2D, fontTex[1]);
     glBegin(GL_QUADS);
-        glTexCoord2f(0.0, 0.0); glVertex2f(-0.25, -0.19);
-        glTexCoord2f(1.0, 0.0); glVertex2f( 1.00, -0.19);
-        glTexCoord2f(1.0, 1.0); glVertex2f( 1.00,  0.19);
-        glTexCoord2f(0.0, 1.0); glVertex2f(-0.25,  0.19);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(-0.25f, -0.19f);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.00f, -0.19f);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.00f,  0.19f);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(-0.25f,  0.19f);
     glEnd();
     glBindTexture(GL_TEXTURE_2D, 0);
 
