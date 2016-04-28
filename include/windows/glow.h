@@ -16,6 +16,9 @@
 
 #include "glowEvents.h"
 
+#ifndef IDT_TIMER1
+#define IDT_TIMER1 1001
+#endif
 
 #define GLOW_MAX_TIMERS 128
 
@@ -67,9 +70,15 @@ private:
 	int prevH;
 	int mouseX;
     int mouseY;
+	ULONGLONG startTime;
+	ULONGLONG prevTime;
 	unsigned int capsmask;
+	bool isIdle;
 	bool requiresRender;
 	unsigned int timerId;
+	UINT_PTR idleTimerId;
+	WPARAM IDLE_MESSAGE;
+	WPARAM TIMER_MESSAGE;
 	//timer_t timeoutTimers[GLOW_MAX_TIMERS];
 	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];
 
@@ -87,7 +96,8 @@ private:
 
 	uint32_t offsetsFromUTF8[4];
 
-	//static void timeoutTimerFired(union sigval arg);
+	static VOID CALLBACK timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime);
+	static VOID CALLBACK idleTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime);
 	static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	static unsigned short translateKey(WPARAM vk, LPARAM lParam);
 	static unsigned short specialKey(WPARAM vk, LPARAM lParam);

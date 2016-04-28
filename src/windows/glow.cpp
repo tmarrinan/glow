@@ -15,6 +15,13 @@ void glow::initialize(unsigned int profile, unsigned int hidpi) {
 
 	timerId = 0;
 
+	isIdle = false;
+	requiresRender = false;
+
+	idleTimerId = 1;
+	IDLE_MESSAGE = 1;
+	TIMER_MESSAGE = 2;
+
 	renderCallback = NULL;
 	idleCallback = NULL;
 	resizeCallback = NULL;
@@ -165,42 +172,24 @@ void glow::resizeFunction(void (*callback)(unsigned int windowW, unsigned int wi
 
 unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait) {
 	int tId = timerId;
-	/*
-	struct sigevent se;
-	struct itimerspec ts;
-
-	GLOW_TimerData *data = (GLOW_TimerData*)malloc(sizeof(GLOW_TimerData));
-	data->glow_ptr = this;
-	data->timer_id = tId;
-
-	se.sigev_notify = SIGEV_THREAD;
-	se.sigev_value.sival_ptr = data;
-	se.sigev_notify_function = timeoutTimerFired;// glow method?
-	se.sigev_notify_attributes = NULL;
-
-	ts.it_value.tv_sec = wait / 1000;
-	ts.it_value.tv_nsec = (unsigned long)(wait % 1000) * (unsigned long)1000000;
-	ts.it_interval.tv_sec = 0;
-	ts.it_interval.tv_nsec = 0;
 
 	timeoutCallbacks[tId] = callback;
+	SetTimer(window, tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
 
-	timer_create(CLOCK_MONOTONIC, &se, &timeoutTimers[tId]);
-	timer_settime(timeoutTimers[tId], 0, &ts, NULL);
-	*/
 	timerId = (timerId + 1) % GLOW_MAX_TIMERS;
 	return tId;
 }
 
 void glow::cancelTimeout(unsigned int timeoutId) {
-	
+	KillTimer(window, timeoutId+IDT_TIMER1);
 }
 
-/*
-void glow::timeoutTimerFired(union sigval arg) {
-	
+VOID CALLBACK glow::timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
+	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	KillTimer(hwnd, idTimer);
+	PostMessage(hwnd, WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);
 }
-*/
+
 void glow::mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
 	mouseDownCallback = callback;
 }
@@ -234,13 +223,37 @@ void glow::requestRenderFrame() {
 }
 
 void glow::runLoop() {
-	if (renderCallback) renderCallback(0, 0, this);
+		MSG message;
+	bool running = true;
 
-	MSG message;
 	while (GetMessage(&message, NULL, 0, 0) > 0) {
-		TranslateMessage(&message);
-		DispatchMessage(&message);
+		do {
+			if (message.message == WM_QUIT) {
+				running = false;
+				break;
+			}
+			TranslateMessage(&message);
+			DispatchMessage(&message);
+		} while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE));
+
+		if (!running) break;
+
+		if (isIdle && idleCallback) {
+			isIdle = false;
+			SetTimer(window, idleTimerId, USER_TIMER_MINIMUM, (TIMERPROC)idleTimerFired);
+		}
+		if (requiresRender && renderCallback) {
+			ULONGLONG now = GetTickCount64();
+			renderCallback(now - startTime, now - prevTime, this);
+			prevTime = now;
+			requiresRender = false;
+		}
 	}
+}
+
+VOID CALLBACK glow::idleTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
+	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	PostMessage(hwnd, WM_USER, self->IDLE_MESSAGE, 0);
 }
 
 LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -252,6 +265,10 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_CREATE:
 			self = (glow*)(((CREATESTRUCT*)lParam)->lpCreateParams);
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (long)self);
+			self->requiresRender = true;
+			self->startTime = GetTickCount64();
+			self->prevTime = self->startTime;
+			self->isIdle = true;
 			break;
 		case WM_CLOSE:
 			DestroyWindow(hwnd);
@@ -279,6 +296,14 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			if (key != GLOW_KEY_CAPS_LOCK)
 				self->keyUpCallback(key, 0, 0, self);
 			break;
+		case WM_USER:
+			if (wParam == self->IDLE_MESSAGE) {
+				self->idleCallback(self);
+				self->isIdle = true;
+			}
+			else if (wParam == self->TIMER_MESSAGE) {
+				self->timeoutCallbacks[lParam](lParam, self);
+			}
 		default:
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
