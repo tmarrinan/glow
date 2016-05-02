@@ -65,6 +65,8 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
 
+	fullscreen = false;
+
 	window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
 
 	display = GetDC(window);
@@ -142,9 +144,6 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 			WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
 			0
 		};
-
-		std::string wext = wglGetExtensionsStringARB(display);
-		printf("%s\n", wext.c_str());
 
 		wglChoosePixelFormatARB(display, iPixelFormatAttribList, NULL,1, &indexPixelFormat, &numPixelFormats);
 		printf("index pixel format: %d (%u)\n", indexPixelFormat, numPixelFormats);
@@ -229,6 +228,28 @@ void glow::requestRenderFrame() {
 	requiresRender = true;
 }
 
+void glow::enalbeFullscreen() {
+	if (fullscreen) return;
+
+	fullscreen = true;
+	RECT rect;
+	GetWindowRect(window, &rect);
+	prevX = rect.left;
+	prevY = rect.top;
+	prevW = rect.right - prevX;
+	prevH = rect.bottom - prevY;
+	SetWindowLongPtr(window, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+	SetWindowPos(window, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
+}
+
+void glow::disableFullscreen() {
+	if (!fullscreen) return;
+
+	fullscreen = false;
+	SetWindowLongPtr(window, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+	SetWindowPos(window, HWND_TOP, prevX, prevY, prevW, prevH, SWP_SHOWWINDOW);
+}
+
 void glow::runLoop() {
 		MSG message;
 	bool running = true;
@@ -267,6 +288,7 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
 	unsigned short key;
+	short rw, rh;
 
 	switch (msg) {
 		case WM_CREATE:
@@ -282,6 +304,15 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
+			break;
+		case WM_SIZE:
+			rw = (short)LOWORD(lParam);
+			rh = (short)HIWORD(lParam);
+			if (!self->resizeCallback) break;
+
+			self->resizeCallback(rw, rh, rw, rh, self);
+			break;
+		case WM_MOVE:
 			break;
 		case WM_KEYDOWN:
 		case WM_SYSKEYDOWN:

@@ -66,6 +66,7 @@ private:
 	unsigned int glCoreVMajor;
 	unsigned int glCoreVMinor;
 	unsigned int hiDPISupport;
+	bool fullscreen;
 	int prevX;
 	int prevY;
 	int prevW;
@@ -128,6 +129,8 @@ public:
 
 	void swapBuffers();
 	void requestRenderFrame();
+	void enalbeFullscreen();
+	void disableFullscreen();
 	void runLoop();
 
 	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
