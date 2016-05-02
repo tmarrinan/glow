@@ -123,7 +123,7 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		if (!glXCreateContextAttribsARB) {
 			fprintf(stderr, "Failed to obtain OpenGL 3.0+ context\n");
 			exit(1);
-		}		
+		}
 		int glProfileAttribs[] = {
 			GLX_CONTEXT_MAJOR_VERSION_ARB, glCoreVMajor,
 			GLX_CONTEXT_MINOR_VERSION_ARB, glCoreVMinor,
