@@ -169,8 +169,8 @@ void onScrollWheel(int dx, int dy, int x, int y, glow *gl) {
 void onKeyDown(unsigned short key, int x, int y, glow *gl) {
     printf("keydown: %u [%c] (%d, %d)\n", key, (unsigned char)key, x, y);
 
-	if (key == GLOW_KEY_F11) gl->enalbeFullscreen();
-	if (key == 27) /* ESC */ gl->disableFullscreen();
+	if (key == 'F') gl->enableFullscreen();
+	if (key == 27)  gl->disableFullscreen();
 }
 
 void onKeyUp(unsigned short key, int x, int y, glow *gl) {

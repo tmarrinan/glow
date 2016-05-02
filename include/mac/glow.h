@@ -53,6 +53,7 @@ private:
 
 	nsOpenGLPixelFormatAttribute glProfileAttrib;
 	unsigned int hiDPISupport;
+	bool fullscreen;
 
 	FT_Library ft;
 
@@ -83,6 +84,8 @@ public:
 
 	void swapBuffers();
 	void requestRenderFrame();
+	void enableFullscreen();
+	void disableFullscreen();
 	void runLoop();
 
 	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);

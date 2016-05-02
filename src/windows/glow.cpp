@@ -228,7 +228,7 @@ void glow::requestRenderFrame() {
 	requiresRender = true;
 }
 
-void glow::enalbeFullscreen() {
+void glow::enableFullscreen() {
 	if (fullscreen) return;
 
 	fullscreen = true;

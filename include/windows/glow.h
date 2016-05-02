@@ -129,7 +129,7 @@ public:
 
 	void swapBuffers();
 	void requestRenderFrame();
-	void enalbeFullscreen();
+	void enableFullscreen();
 	void disableFullscreen();
 	void runLoop();
 
