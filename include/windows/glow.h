@@ -23,7 +23,7 @@
 #define GLOW_MAX_TIMERS 128
 
 #define GLOW_OPENGL_LEGACY 0
-#define GLOW_OPENGL_3_2_CORE 1
+#define GLOW_OPENGL_CORE 1
 #define GLOW_BASE_WINDOW 0
 #define GLOW_HIDPI_WINDOW 1
 #define GLOW_CENTER_HORIZONTAL INT_MAX
@@ -63,6 +63,8 @@ private:
 	HGLRC ctx;
 
 	unsigned int glProfile;
+	unsigned int glCoreVMajor;
+	unsigned int glCoreVMinor;
 	unsigned int hiDPISupport;
 	int prevX;
 	int prevY;
@@ -109,7 +111,7 @@ public:
 
 	
 	void createWindow(std::string title, int x, int y, unsigned int width, unsigned int height);
-	void initialize(unsigned int profile, unsigned int hidpi);
+	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi);
 
 	void renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl));
 	void idleFunction(void (*callback)(glow *gl));

@@ -4,8 +4,10 @@
 PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
 
 // GLOW C++ Interface
-void glow::initialize(unsigned int profile, unsigned int hidpi) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
 	glProfile = profile;
+	glCoreVMajor = vmajor;
+	glCoreVMinor = vminor;
 	hiDPISupport = hidpi;
 
 	mouseX = 0;
@@ -117,14 +119,14 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	XStoreName(display, window, title.c_str());
 
 	ctx = NULL;
-	if (glProfile == GLOW_OPENGL_3_2_CORE) {
+	if (glProfile == GLOW_OPENGL_CORE) {
 		if (!glXCreateContextAttribsARB) {
-			fprintf(stderr, "Failed to obtain OpenGL 3.2+ context\n");
+			fprintf(stderr, "Failed to obtain OpenGL 3.0+ context\n");
 			exit(1);
 		}		
 		int glProfileAttribs[] = {
-			GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
-			GLX_CONTEXT_MINOR_VERSION_ARB, 2,
+			GLX_CONTEXT_MAJOR_VERSION_ARB, glCoreVMajor,
+			GLX_CONTEXT_MINOR_VERSION_ARB, glCoreVMinor,
 			GLX_CONTEXT_FLAGS_ARB,         GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
 			GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
 			None

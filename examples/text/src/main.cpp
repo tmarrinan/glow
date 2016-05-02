@@ -28,8 +28,8 @@ int main (int argc, char **argv) {
 
     glow *gl = new glow();
 
-    //gl->initialize(GLOW_OPENGL_3_2_CORE, GLOW_HIDPI_WINDOW);
-    gl->initialize(GLOW_OPENGL_LEGACY, GLOW_BASE_WINDOW);
+    //gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_HIDPI_WINDOW);
+    gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_BASE_WINDOW);
     gl->createWindow("TEST", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 800, 640);
 
     gl->mouseDownListener(onMouseDown);

@@ -6,8 +6,10 @@ PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = NULL;
 PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = NULL;
 
 // GLOW C++ Interface
-void glow::initialize(unsigned int profile, unsigned int hidpi) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
 	glProfile = profile;
+	glCoreVMajor = vmajor;
+	glCoreVMinor = vminor;
 	hiDPISupport = hidpi;
 
 	mouseX = 0;
@@ -105,18 +107,18 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		exit(1);
 	}
 
-	if (glProfile == GLOW_OPENGL_3_2_CORE) {
+	if (glProfile == GLOW_OPENGL_CORE) {
 		wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 		wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 		wglGetExtensionsStringARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
 
 		if (wglGetExtensionsStringARB == NULL) {
-			fprintf(stderr, "ERROR OpenGL 3.2 not supported on this system\n");
+			fprintf(stderr, "ERROR OpenGL 3.0+ not supported on this system\n");
 			exit(1);
 		}
 		std::string ext = wglGetExtensionsStringARB(display);
 		if (ext.find("WGL_ARB_create_context") == std::string::npos) {
-			fprintf(stderr, "ERROR OpenGL 3.2 not supported on this system\n");
+			fprintf(stderr, "ERROR OpenGL 3.0+ not supported on this system\n");
 			exit(1);
 		}
 
@@ -134,8 +136,8 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 			0
 		};
 		int iContextAttribs[] = {
-			WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-			WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+			WGL_CONTEXT_MAJOR_VERSION_ARB, glCoreVMajor,
+			WGL_CONTEXT_MINOR_VERSION_ARB, glCoreVMinor,
 			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
 			WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
 			0

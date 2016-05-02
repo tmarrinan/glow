@@ -17,13 +17,23 @@
 @end
 
 // GLOW C++ Wrapped Interface
-void glow::initialize(unsigned int profile, unsigned int hidpi) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
 	pool = [[NSAutoreleasePool alloc] init];
 
 	GLDelegate *glDelegate = [[GLDelegate alloc] init];
 	[[NSApplication sharedApplication] setDelegate:glDelegate];
 
-	glProfileAttrib = (profile == GLOW_OPENGL_3_2_CORE) ? NSOpenGLProfileVersion3_2Core : NSOpenGLProfileVersionLegacy;
+	if (profile == GLOW_OPENGL_CORE) {
+		if ((vmajor == 3 && vminor > 2) || vmajor > 3) {
+			glProfileAttrib = NSOpenGLProfileVersion4_1Core;
+		}
+		else {
+			glProfileAttrib = NSOpenGLProfileVersion3_2Core;
+		}
+	}
+	else {
+		glProfileAttrib = NSOpenGLProfileVersionLegacy;
+	}
 	hiDPISupport = hidpi;
 
 	// setup app menu
