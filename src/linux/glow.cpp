@@ -41,6 +41,8 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 		exit(1);
 	}
 
+	stateMessage = XInternAtom(display, "_NET_WM_STATE", False);
+	fullscreenMessage = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
 	timeoutMessage = XInternAtom(display, "TIMEOUT", False);
 
 	// initialize freetype text rendering
@@ -154,6 +156,7 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	prevY = y;
 	prevW = width;
 	prevH = height;
+	fullscreen = false;
 	XMoveWindow(display, window, x, y);
 }
 
@@ -251,6 +254,42 @@ void glow::swapBuffers() {
 
 void glow::requestRenderFrame() {
 	requiresRender = true;
+}
+
+void glow::enableFullscreen() {
+	if (fullscreen) return;
+
+	fullscreen = true;
+
+	XLockDisplay(display);
+	XEvent fsEvent;
+	fsEvent.type = ClientMessage;
+	fsEvent.xclient.window = window;
+	fsEvent.xclient.message_type = stateMessage;
+	fsEvent.xclient.format = 32;
+	fsEvent.xclient.data.l[0] = 1;
+	fsEvent.xclient.data.l[1] = fullscreenMessage;
+	fsEvent.xclient.data.l[2] = 0;
+	XSendEvent(display, DefaultRootWindow(display), False, SubstructureNotifyMask, &fsEvent);
+	XUnlockDisplay(display);
+}
+
+void glow::disableFullscreen() {
+	if (!fullscreen) return;
+
+	fullscreen = false;
+
+	XLockDisplay(display);
+	XEvent fsEvent;
+	fsEvent.type = ClientMessage;
+	fsEvent.xclient.window = window;
+	fsEvent.xclient.message_type = stateMessage;
+	fsEvent.xclient.format = 32;
+	fsEvent.xclient.data.l[0] = 0;
+	fsEvent.xclient.data.l[1] = fullscreenMessage;
+	fsEvent.xclient.data.l[2] = 0;
+	XSendEvent(display, DefaultRootWindow(display), False, SubstructureNotifyMask, &fsEvent);
+	XUnlockDisplay(display);
 }
 
 void glow::runLoop() {
