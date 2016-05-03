@@ -35,7 +35,6 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 		glProfileAttrib = NSOpenGLProfileVersionLegacy;
 	}
 	hiDPISupport = hidpi;
-	fullscreen = false;
 
 	// setup app menu
 	NSMenu *menu=[[NSMenu alloc] initWithTitle:@"AMainMenu"];
@@ -166,16 +165,14 @@ void glow::requestRenderFrame() {
 }
 
 void glow::enableFullscreen() {
-	if (fullscreen) return;
+	if ([mainwindow styleMask] & NSFullScreenWindowMask) return;
 
-	fullscreen = true;
 	[mainwindow toggleFullScreen:nil];
 }
 
 void glow::disableFullscreen() {
-	if (!fullscreen) return;
+	if (!([mainwindow styleMask] & NSFullScreenWindowMask)) return;
 
-	fullscreen = false;
 	[mainwindow toggleFullScreen:nil];
 }
 

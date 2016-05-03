@@ -53,7 +53,6 @@ private:
 
 	nsOpenGLPixelFormatAttribute glProfileAttrib;
 	unsigned int hiDPISupport;
-	bool fullscreen;
 
 	FT_Library ft;
 
