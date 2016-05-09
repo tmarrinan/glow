@@ -293,6 +293,8 @@ void glow::disableFullscreen() {
 }
 
 void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
+	fullscreen = false;
+	
 	XLockDisplay(display);
 	Screen *screen = XDefaultScreenOfDisplay(display);
 	int screenW = XWidthOfScreen(screen);
