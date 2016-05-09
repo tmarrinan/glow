@@ -250,6 +250,20 @@ void glow::disableFullscreen() {
 	SetWindowPos(window, HWND_TOP, prevX, prevY, prevW, prevH, SWP_SHOWWINDOW);
 }
 
+void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
+	fullscreen = false;
+	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
+	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
+	
+	SetWindowLongPtr(window, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+	SetWindowPos(window, HWND_TOP, x, y, width, height, SWP_SHOWWINDOW);
+}
+
+void glow::setWindowTitle(std::string title) {
+	std::wstring wtitle = std::wstring(title.begin(), title.end());
+	SetWindowText(window, wtitle);
+}
+
 void glow::runLoop() {
 		MSG message;
 	bool running = true;

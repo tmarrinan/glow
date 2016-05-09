@@ -131,6 +131,8 @@ public:
 	void requestRenderFrame();
 	void enableFullscreen();
 	void disableFullscreen();
+	void setWindowGeometry(int x, int y, unsigned int width, unsigned int height);
+	void setWindowTitle(std::string title);
 	void runLoop();
 
 	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
