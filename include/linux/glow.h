@@ -2,6 +2,7 @@
 #define __GLOW_LINUX_H__
 
 #include <X11/X.h>
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
@@ -75,10 +76,13 @@ private:
 	int prevY;
 	int prevW;
 	int prevH;
+	bool fullscreen;
 	int mouseX;
     int mouseY;
 	unsigned int capsmask;
 	bool requiresRender;
+	Atom stateMessage;
+	Atom fullscreenMessage;
 	Atom timeoutMessage;
 	unsigned int timerId;
 	timer_t timeoutTimers[GLOW_MAX_TIMERS];
@@ -125,6 +129,8 @@ public:
 
 	void swapBuffers();
 	void requestRenderFrame();
+	void enableFullscreen();
+	void disableFullscreen();
 	void runLoop();
 
 	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
