@@ -292,6 +292,25 @@ void glow::disableFullscreen() {
 	XUnlockDisplay(display);
 }
 
+void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
+	XLockDisplay(display);
+	Screen *screen = XDefaultScreenOfDisplay(display);
+	int screenW = XWidthOfScreen(screen);
+	int screenH = XHeightOfScreen(screen);
+
+	if (x == GLOW_CENTER_HORIZONTAL) x = (screenW / 2) - (width / 2);
+	if (y == GLOW_CENTER_VERTICAL) y = (screenH / 2) - (height / 2);
+
+	XMoveResizeWindow(display, window, x, y, width, height);
+	XUnlockDisplay(display);
+}
+
+void glow::setWindowTitle(std::string title) {
+	XLockDisplay(display);
+	XStoreName(display, window, title.c_str());
+	XUnlockDisplay(display);
+}
+
 void glow::runLoop() {
 	Atom idleMessage = XInternAtom(display, "IDLE", False);
 	Atom wmProtocols = XInternAtom(display, "WM_PROTOCOLS", False);
