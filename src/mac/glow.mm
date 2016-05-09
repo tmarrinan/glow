@@ -176,6 +176,20 @@ void glow::disableFullscreen() {
 	[mainwindow toggleFullScreen:nil];
 }
 
+void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
+	NSRect screen = [[NSScreen mainScreen] frame];
+	if (x == GLOW_CENTER_HORIZONTAL) x = ((int)screen.size.width / 2) - (width / 2);
+	if (y == GLOW_CENTER_VERTICAL) y = ((int)screen.size.height / 2) - (height / 2);
+
+	NSRect newFrame = [mainwindow frameRectForContentRect:NSMakeRect(x, (int)screen.size.height - y - height, width, height)];
+	[mainwindow setFrame:newFrame display:YES animate:[mainwindow isVisible]];
+}
+
+void glow::setWindowTitle(std::string title) {
+	NSString* appTitle = [NSString stringWithUTF8String:title.c_str()];
+	[mainwindow setTitle:appTitle];
+}
+
 void glow::runLoop() {
 	[NSApp run];
 

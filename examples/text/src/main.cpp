@@ -143,6 +143,8 @@ void onMouseDown(unsigned short button, int x, int y, glow *gl) {
             break;
         case GLOW_MOUSE_BUTTON_RIGHT:
             printf("mousedown: right (%d, %d)\n", x, y);
+            gl->setWindowTitle("TEXT: right click");
+            gl->setWindowGeometry(720, 450, 400, 300);
             break;
     }
 }
