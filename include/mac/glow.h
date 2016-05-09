@@ -54,6 +54,12 @@ private:
 	nsOpenGLPixelFormatAttribute glProfileAttrib;
 	unsigned int hiDPISupport;
 
+	bool windowRequiresResize;
+	int requestedWindowX;
+	int requestedWindowY;
+	unsigned int requestedWindowW;
+	unsigned int requestedWindowH;
+
 	FT_Library ft;
 
 	uint32_t offsetsFromUTF8[4];
@@ -86,6 +92,7 @@ public:
 	void enableFullscreen();
 	void disableFullscreen();
 	void setWindowGeometry(int x, int y, unsigned int width, unsigned int height);
+	void exitFullScreenFinished();
 	void setWindowTitle(std::string title);
 	void runLoop();
 

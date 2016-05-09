@@ -16,6 +16,24 @@
 }
 @end
 
+// Window Delegate (gets window notification messages)
+@interface WindowDelegate : NSObject <NSWindowDelegate>
+
+-(void) windowDidExitFullScreen:(NSNotification *)notification;
+
+@end
+
+@implementation WindowDelegate {
+	glow *glowPtr;
+}
+-(void) setGlowPtr:(glow *)ptr {
+	glowPtr = ptr;
+}
+-(void) windowDidExitFullScreen:(NSNotification *)notification {
+	glowPtr->exitFullScreenFinished();
+}
+@end
+
 // GLOW C++ Wrapped Interface
 void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
 	pool = [[NSAutoreleasePool alloc] init];
@@ -35,6 +53,7 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 		glProfileAttrib = NSOpenGLProfileVersionLegacy;
 	}
 	hiDPISupport = hidpi;
+	windowRequiresResize = false;
 
 	// setup app menu
 	NSMenu *menu=[[NSMenu alloc] initWithTitle:@"AMainMenu"];
@@ -53,7 +72,7 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 
 	[NSApp activateIgnoringOtherApps:YES];
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
+	
 	// initialize freetype text rendering
 	if(FT_Init_FreeType(&ft)) fprintf(stderr, "Error: could not init freetype library\n");
 	offsetsFromUTF8[0] = 0x00000000UL;
@@ -86,7 +105,10 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 
 	int styleMask = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 	NSString* appTitle = [NSString stringWithUTF8String:title.c_str()];
+	WindowDelegate *winDelegate = [[WindowDelegate alloc] init];
+	[winDelegate setGlowPtr:this];
 	mainwindow = [[[NSWindow alloc] initWithContentRect:[view frame] styleMask:styleMask backing:NSBackingStoreBuffered defer:NO] autorelease];
+	[mainwindow setDelegate:winDelegate];
 	[mainwindow cascadeTopLeftFromPoint:NSMakePoint(20,20)];
 	[mainwindow setTitle:appTitle];
 	[mainwindow setContentView:view];
@@ -182,12 +204,32 @@ void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int heig
 	if (y == GLOW_CENTER_VERTICAL) y = ((int)screen.size.height / 2) - (height / 2);
 
 	NSRect newFrame = [mainwindow frameRectForContentRect:NSMakeRect(x, (int)screen.size.height - y - height, width, height)];
-	[mainwindow setFrame:newFrame display:YES animate:[mainwindow isVisible]];
+	if (([mainwindow styleMask] & NSFullScreenWindowMask)) {
+		windowRequiresResize = true;
+		requestedWindowX = x;
+		requestedWindowY = y;
+		requestedWindowW = width;
+		requestedWindowH = height;
+		[mainwindow toggleFullScreen:nil];
+	}
+	else {
+		[mainwindow setFrame:newFrame display:YES animate:YES];
+	}
 }
 
 void glow::setWindowTitle(std::string title) {
 	NSString* appTitle = [NSString stringWithUTF8String:title.c_str()];
 	[mainwindow setTitle:appTitle];
+}
+
+void glow::exitFullScreenFinished() {
+	if (windowRequiresResize) {
+		windowRequiresResize = false;
+
+		NSRect screen = [[NSScreen mainScreen] frame];
+		NSRect newFrame = [mainwindow frameRectForContentRect:NSMakeRect(requestedWindowX, (int)screen.size.height - requestedWindowY - requestedWindowH, requestedWindowW, requestedWindowH)];
+		[mainwindow setFrame:newFrame display:YES animate:YES];
+	}
 }
 
 void glow::runLoop() {
