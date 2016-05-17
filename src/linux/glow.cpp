@@ -293,9 +293,22 @@ void glow::disableFullscreen() {
 }
 
 void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
-	fullscreen = false;
-	
+	bool wasFullscreen = fullscreen;
+	fullscreen = false;	
+
 	XLockDisplay(display);
+	if (wasFullscreen) {
+		XEvent fsEvent;
+		fsEvent.type = ClientMessage;
+		fsEvent.xclient.window = window;
+		fsEvent.xclient.message_type = stateMessage;
+		fsEvent.xclient.format = 32;
+		fsEvent.xclient.data.l[0] = 0;
+		fsEvent.xclient.data.l[1] = fullscreenMessage;
+		fsEvent.xclient.data.l[2] = 0;
+		XSendEvent(display, DefaultRootWindow(display), False, SubstructureNotifyMask, &fsEvent);
+	}
+
 	Screen *screen = XDefaultScreenOfDisplay(display);
 	int screenW = XWidthOfScreen(screen);
 	int screenH = XHeightOfScreen(screen);
