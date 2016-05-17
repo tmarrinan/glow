@@ -261,7 +261,7 @@ void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int heig
 
 void glow::setWindowTitle(std::string title) {
 	std::wstring wtitle = std::wstring(title.begin(), title.end());
-	SetWindowText(window, wtitle);
+	SetWindowText(window, wtitle.c_str());
 }
 
 void glow::runLoop() {
@@ -302,7 +302,7 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
 	unsigned short key;
-	short rw, rh;
+	short rw, rh, scroll;
 
 	switch (msg) {
 		case WM_CREATE:
@@ -334,10 +334,10 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			key = translateKey(wParam, lParam);
 			if (key == GLOW_KEY_CAPS_LOCK && !(GetKeyState(VK_CAPITAL) & 0x0001)) {
-				if (self->keyUpCallback) self->keyUpCallback(key, 0, 0, self);
+				if (self->keyUpCallback) self->keyUpCallback(key, self->mouseX, self->mouseY, self);
 			}
 			else {
-				if (self->keyDownCallback) self->keyDownCallback(key, 0, 0, self);
+				if (self->keyDownCallback) self->keyDownCallback(key, self->mouseX, self->mouseY, self);
 			}
 			break;
 		case WM_KEYUP:
@@ -346,7 +346,47 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			key = translateKey(wParam, lParam);
 			if (key != GLOW_KEY_CAPS_LOCK)
-				self->keyUpCallback(key, 0, 0, self);
+				self->keyUpCallback(key, self->mouseX, self->mouseY, self);
+			break;
+		case WM_LBUTTONDOWN:
+			if (!self->mouseDownCallback) break;
+
+			self->mouseDownCallback(GLOW_MOUSE_BUTTON_LEFT, self->mouseX, self->mouseY, self);
+			break;
+		case WM_RBUTTONDOWN:
+			if (!self->mouseDownCallback) break;
+
+			self->mouseDownCallback(GLOW_MOUSE_BUTTON_RIGHT, self->mouseX, self->mouseY, self);
+			break;
+		case WM_LBUTTONUP:
+			if (!self->mouseUpCallback) break;
+
+			self->mouseUpCallback(GLOW_MOUSE_BUTTON_LEFT, self->mouseX, self->mouseY, self);
+			break;
+		case WM_RBUTTONUP:
+			if (!self->mouseUpCallback) break;
+
+			self->mouseUpCallback(GLOW_MOUSE_BUTTON_RIGHT, self->mouseX, self->mouseY, self);
+			break;
+		case WM_MOUSEWHEEL:
+			if (!self->scrollWheelCallback) break;
+
+			scroll = (short)HIWORD(wParam);
+			self->scrollWheelCallback(0, scroll, self->mouseX, self->mouseY, self);
+			break;
+		case WM_MOUSEHWHEEL:
+			if (!self->scrollWheelCallback) break;
+
+			scroll = (short)HIWORD(wParam);
+			self->scrollWheelCallback(scroll, 0, self->mouseX, self->mouseY, self);
+			break;
+		case WM_MOUSEMOVE:
+			self->mouseX = (short)LOWORD(lParam);
+			self->mouseY = (short)HIWORD(lParam);
+
+			if (!self->mouseMoveCallback) break;
+
+			self->mouseMoveCallback(self->mouseX, self->mouseY, self);
 			break;
 		case WM_USER:
 			if (wParam == self->IDLE_MESSAGE) {
