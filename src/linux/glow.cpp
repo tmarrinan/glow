@@ -4,14 +4,15 @@
 PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
 
 // GLOW C++ Interface
-void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype) {
 	glProfile = profile;
 	glCoreVMajor = vmajor;
 	glCoreVMinor = vminor;
-	hiDPISupport = hidpi;
+	hiDPISupport = windowtype & GLOW_HIDPI_WINDOW;
+	borderless = windowtype & GLOW_BORDERLESS_WINDOW;
 
 	mouseX = 0;
-    mouseY = 0;
+	mouseY = 0;
 
 	timerId = 0;
 
@@ -118,6 +119,20 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	}
 	XFree(vi);
 
+	if (borderless) {
+		Atom wmHints = XInternAtom(display, "_MOTIF_WM_HINTS", False);
+		struct {
+			unsigned long flags;
+			unsigned long functions;
+			unsigned long decorations;
+			long input_mode;
+			unsigned long status; 
+		} hints;
+		hints.flags = 2;
+		hints.decorations = 0;
+		XChangeProperty(display, window, wmHints, wmHints, 32, PropModeReplace, (unsigned char*) &hints, sizeof(hints) / sizeof(long));
+	}
+	
 	XStoreName(display, window, title.c_str());
 
 	ctx = NULL;

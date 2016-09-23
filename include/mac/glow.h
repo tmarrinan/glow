@@ -28,6 +28,7 @@ typedef uint32_t nsOpenGLPixelFormatAttribute;
 #define GLOW_OPENGL_CORE 1
 #define GLOW_BASE_WINDOW 0
 #define GLOW_HIDPI_WINDOW 1
+#define GLOW_BORDERLESS_WINDOW 2
 #define GLOW_CENTER_HORIZONTAL INT_MAX
 #define GLOW_CENTER_VERTICAL INT_MAX
 
@@ -52,7 +53,8 @@ private:
 	nsOpenGLContext *glContext;
 
 	nsOpenGLPixelFormatAttribute glProfileAttrib;
-	unsigned int hiDPISupport;
+	bool hiDPISupport;
+	bool borderless;
 
 	bool windowRequiresResize;
 	int requestedWindowX;
@@ -71,7 +73,7 @@ public:
 	glow() {};
 	~glow() {};
  
-	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi);
+	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype);
 	void createWindow(std::string title, int x, int y, unsigned int width, unsigned int height);
 
 	void renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl));

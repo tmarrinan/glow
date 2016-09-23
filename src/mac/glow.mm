@@ -35,7 +35,7 @@
 @end
 
 // GLOW C++ Wrapped Interface
-void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype) {
 	pool = [[NSAutoreleasePool alloc] init];
 
 	GLDelegate *glDelegate = [[GLDelegate alloc] init];
@@ -52,7 +52,8 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	else {
 		glProfileAttrib = NSOpenGLProfileVersionLegacy;
 	}
-	hiDPISupport = hidpi;
+	hiDPISupport = windowtype & GLOW_HIDPI_WINDOW;
+	borderless = windowtype & GLOW_BORDERLESS_WINDOW;
 	windowRequiresResize = false;
 
 	// setup app menu
@@ -100,8 +101,8 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	glContext = [[NSOpenGLContext alloc] initWithFormat:pixelFormat shareContext:NULL];
 
 	glView* view = [[glView alloc] initWithFrame:NSMakeRect(0, 0, width, height) glowPtr:this ctx:glContext];
-	if (hiDPISupport == GLOW_HIDPI_WINDOW) [view setWantsBestResolutionOpenGLSurface:YES];
-	else                                   [view setWantsBestResolutionOpenGLSurface:NO];
+	if (hiDPISupport) [view setWantsBestResolutionOpenGLSurface:YES];
+	else              [view setWantsBestResolutionOpenGLSurface:NO];
 
 	int styleMask = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 	NSString* appTitle = [NSString stringWithUTF8String:title.c_str()];

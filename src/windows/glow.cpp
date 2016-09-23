@@ -6,14 +6,15 @@ PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = NULL;
 PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = NULL;
 
 // GLOW C++ Interface
-void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int hidpi) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype) {
 	glProfile = profile;
 	glCoreVMajor = vmajor;
 	glCoreVMinor = vminor;
-	hiDPISupport = hidpi;
+	hiDPISupport = windowtype & GLOW_HIDPI_WINDOW;
+	borderless = windowtype & GLOW_BORDERLESS_WINDOW;
 
 	mouseX = 0;
-    mouseY = 0;
+	mouseY = 0;
 
 	timerId = 0;
 
