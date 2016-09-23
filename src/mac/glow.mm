@@ -104,7 +104,8 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	if (hiDPISupport) [view setWantsBestResolutionOpenGLSurface:YES];
 	else              [view setWantsBestResolutionOpenGLSurface:NO];
 
-	int styleMask = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
+	int styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
+	if (borderless) styleMask = NSWindowStyleMaskBorderless;
 	NSString* appTitle = [NSString stringWithUTF8String:title.c_str()];
 	WindowDelegate *winDelegate = [[WindowDelegate alloc] init];
 	[winDelegate setGlowPtr:this];
@@ -188,13 +189,13 @@ void glow::requestRenderFrame() {
 }
 
 void glow::enableFullscreen() {
-	if ([mainwindow styleMask] & NSFullScreenWindowMask) return;
+	if ([mainwindow styleMask] & NSWindowStyleMaskFullScreen) return;
 
 	[mainwindow toggleFullScreen:nil];
 }
 
 void glow::disableFullscreen() {
-	if (!([mainwindow styleMask] & NSFullScreenWindowMask)) return;
+	if (!([mainwindow styleMask] & NSWindowStyleMaskFullScreen)) return;
 
 	[mainwindow toggleFullScreen:nil];
 }
@@ -205,7 +206,7 @@ void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int heig
 	if (y == GLOW_CENTER_VERTICAL) y = ((int)screen.size.height / 2) - (height / 2);
 
 	NSRect newFrame = [mainwindow frameRectForContentRect:NSMakeRect(x, (int)screen.size.height - y - height, width, height)];
-	if (([mainwindow styleMask] & NSFullScreenWindowMask)) {
+	if (([mainwindow styleMask] & NSWindowStyleMaskFullScreen)) {
 		windowRequiresResize = true;
 		requestedWindowX = x;
 		requestedWindowY = y;
