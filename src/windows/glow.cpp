@@ -68,7 +68,11 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 
 	fullscreen = false;
 
-	window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
+	if (borderless)
+		window = CreateWindowEx(WS_EX_APPWINDOW, glClass, wtitle.c_str(), WS_POPUP, x, y, width, height, NULL, NULL, hinst, this);
+	else
+		window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
+
 
 	display = GetDC(window);
 	if (display == NULL) {
