@@ -28,9 +28,16 @@ int main (int argc, char **argv) {
 
     glow *gl = new glow();
 
+    int winX = GLOW_CENTER_HORIZONTAL;
+    int winY = GLOW_CENTER_VERTICAL;
+    if (argc >= 2)
+    	winX = atoi(argv[1]);
+    if (argc >= 3)
+    	winY = atoi(argv[2]);
+
     //gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_HIDPI_WINDOW);
     gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_BASE_WINDOW);
-    gl->createWindow("TEST", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 800, 640);
+    gl->createWindow("TEST", winX, winY, 800, 640);
 
     gl->mouseDownListener(onMouseDown);
     gl->mouseUpListener(onMouseUp);
