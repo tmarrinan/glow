@@ -3,17 +3,28 @@
 
 @implementation glView {
     glow *glowPtr;
+    int winId;
     NSOpenGLContext* glContext;
     
-    void (* renderCallback)(unsigned long t, unsigned int dt, glow *gl);
-    void (* idleCallback)(glow *gl);
-    void (* resizeCallback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl);
-    void (* mouseDownCallback)(unsigned short button, int x, int y, glow *gl);
-    void (* mouseUpCallback)(unsigned short button, int x, int y, glow *gl);
-    void (* mouseMoveCallback)(int x, int y, glow *gl);
-    void (* scrollWheelCallback)(int dx, int dy, int x, int y, glow *gl);
-    void (* keyDownCallback)(unsigned short key, int x, int y, glow *gl);
-    void (* keyUpCallback)(unsigned short key, int x, int y, glow *gl);
+    void (* renderCallback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data);
+    void (* idleCallback)(glow *gl, int wid, void *data);
+    void (* resizeCallback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data);
+    void (* mouseDownCallback)(glow *gl, int wid, unsigned short button, int x, int y, void *data);
+    void (* mouseUpCallback)(glow *gl, int wid, unsigned short button, int x, int y, void *data);
+    void (* mouseMoveCallback)(glow *gl, int wid, int x, int y, void *data);
+    void (* scrollWheelCallback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data);
+    void (* keyDownCallback)(glow *gl, int wid, unsigned short key, int x, int y, void *data);
+    void (* keyUpCallback)(glow *gl, int wid, unsigned short key, int x, int y, void *data);
+
+    void *renderData;
+    void *idleData;
+    void *resizeData;
+    void *mouseDownData;
+    void *mouseUpData;
+    void *mouseMoveData;
+    void *scrollWheelData;
+    void *keyDownData;
+    void *keyUpData;
 
     bool leftShift;
     bool rightShift;
@@ -36,7 +47,8 @@
 
     unsigned int timerId;
     NSTimer *timeoutTimers[GLOW_MAX_TIMERS];
-    void (* timeoutCallbacks[GLOW_MAX_TIMERS])(unsigned int timeoutId, glow *gl);
+    void (* timeoutCallbacks[GLOW_MAX_TIMERS])(glow *gl, unsigned int timeoutId, void *data);
+    void *timeoutData[GLOW_MAX_TIMERS];
 }
 
 - (id) init {
@@ -44,13 +56,14 @@
     return nil;
 }
 
-- (id) initWithFrame:(NSRect)rect glowPtr:(glow*)gl ctx:(NSOpenGLContext*)ctx {
+- (id) initWithFrame:(NSRect)rect glowPtr:(glow*)gl ctx:(NSOpenGLContext*)ctx winId:(int)wid {
     self = [super initWithFrame:rect];
     if (self == nil)
         return nil;
 
     glowPtr = gl;
     glContext = ctx;
+    winId = wid;
 
     GLint swapInt = 1;
     [glContext setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
@@ -106,25 +119,25 @@
 - (void) mouseDown:(NSEvent*)event {
     if (!mouseDownCallback) return;
 
-    mouseDownCallback(GLOW_MOUSE_BUTTON_LEFT, mouseX, mouseY, glowPtr);
+    mouseDownCallback(glowPtr, winId, GLOW_MOUSE_BUTTON_LEFT, mouseX, mouseY, mouseDownData);
 }
 
 - (void) rightMouseDown:(NSEvent*)event {
     if (!mouseDownCallback) return;
     
-    mouseDownCallback(GLOW_MOUSE_BUTTON_RIGHT, mouseX, mouseY, glowPtr);
+    mouseDownCallback(glowPtr, winId, GLOW_MOUSE_BUTTON_RIGHT, mouseX, mouseY, mouseDownData);
 }
 
 - (void) mouseUp:(NSEvent*)event {
     if (!mouseUpCallback) return;
 
-    mouseUpCallback(GLOW_MOUSE_BUTTON_LEFT, mouseX, mouseY, glowPtr);
+    mouseUpCallback(glowPtr, winId, GLOW_MOUSE_BUTTON_LEFT, mouseX, mouseY, mouseUpData);
 }
 
 - (void) rightMouseUp:(NSEvent*)event {
     if (!mouseUpCallback) return;
     
-    mouseUpCallback(GLOW_MOUSE_BUTTON_RIGHT, mouseX, mouseY, glowPtr);
+    mouseUpCallback(glowPtr, winId, GLOW_MOUSE_BUTTON_RIGHT, mouseX, mouseY, mouseUpData);
 }
 
 - (void) mouseMoved:(NSEvent*)event {
@@ -139,7 +152,7 @@
 
     if (!mouseMoveCallback) return;
 
-    mouseMoveCallback(mouseX, mouseY, glowPtr);
+    mouseMoveCallback(glowPtr, winId, mouseX, mouseY, mouseMoveData);
 }
 
 - (void) mouseDragged:(NSEvent*)event {
@@ -153,7 +166,7 @@
 - (void) scrollWheel:(NSEvent*)event; {
     if (!scrollWheelCallback) return;
 
-    scrollWheelCallback([event scrollingDeltaX], [event scrollingDeltaY], mouseX, mouseY, glowPtr);
+    scrollWheelCallback(glowPtr, winId, [event scrollingDeltaX], [event scrollingDeltaY], mouseX, mouseY, scrollWheelData);
 }
 
 - (void) keyDown:(NSEvent*)event {
@@ -161,10 +174,10 @@
 
     unsigned char key = [[event characters] UTF8String][0];
     if (key < 128) {
-        keyDownCallback(key, mouseX, mouseY, glowPtr);
+        keyDownCallback(glowPtr, winId, key, mouseX, mouseY, keyDownData);
     }
     else {
-        keyDownCallback([self specialKey:[event keyCode]], mouseX, mouseY, glowPtr);
+        keyDownCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyDownData);
     }
 }
 
@@ -173,10 +186,10 @@
 
     unsigned char key = [[event characters] UTF8String][0];
     if (key < 128) {
-        keyUpCallback(key, mouseX, mouseY, glowPtr);
+        keyUpCallback(glowPtr, winId, key, mouseX, mouseY, keyUpData);
     }
     else {
-        keyUpCallback([self specialKey:[event keyCode]], mouseX, mouseY, glowPtr);
+        keyUpCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyUpData);
     }
 }
 
@@ -229,9 +242,9 @@
     }
 
     if (keydown)
-        keyDownCallback([self specialKey:[event keyCode]], mouseX, mouseY, glowPtr);
+        keyDownCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyDownData);
     else
-        keyUpCallback([self specialKey:[event keyCode]], mouseX, mouseY, glowPtr);
+        keyUpCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyUpData);
 }
 
 - (void) drawRect:(NSRect)bounds {
@@ -241,7 +254,8 @@
     gettimeofday(&tp, NULL);
     long now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-    renderCallback(now - startTime, now - prevTime, glowPtr);
+    [glContext makeCurrentContext];
+    renderCallback(glowPtr, winId, now - startTime, now - prevTime, renderData);
     
     prevTime = now;
 
@@ -253,13 +267,17 @@
 }
 
 - (void) idleTimerFired:(NSTimer*)sender {
-    idleCallback(glowPtr);
+    idleCallback(glowPtr, winId, idleData);
 }
 
 - (void) timeoutTimerFired:(NSTimer*)sender {
     NSNumber *tId = [sender userInfo];
     unsigned int timeoutId = [tId intValue];
-    timeoutCallbacks[timeoutId](timeoutId, glowPtr);
+    timeoutCallbacks[timeoutId](glowPtr, timeoutId, timeoutData[timeoutId]);
+}
+
+- (void) setAsActiveContext {
+    [glContext makeCurrentContext];
 }
 
 - (void) swapBuffers {
@@ -281,9 +299,10 @@
     NSSize wsize = [self frame].size;
     NSSize bsize = [self convertSizeToBacking:wsize];
 
+    [glContext makeCurrentContext];
     [glContext update];
 
-    resizeCallback(wsize.width, wsize.height, bsize.width, bsize.height, glowPtr);
+    resizeCallback(glowPtr, winId, wsize.width, wsize.height, bsize.width, bsize.height, resizeData);
 }
 
 - (unsigned short) specialKey:(unsigned short)code {
@@ -374,15 +393,17 @@
     return key;
 }
 
-- (void) renderFunction:(void (*)(unsigned long t, unsigned int dt, glow *gl))callback {
+- (void) renderFunction:(void (*)(glow *gl, int winId, unsigned long t, unsigned int dt, void *data))callback data:(void*)data {
     renderCallback = callback;
+    renderData = data;
 }
 
-- (void) idleFunction:(void (*)(glow *gl))callback {
+- (void) idleFunction:(void (*)(glow *gl, int winId, void *data))callback data:(void*)data {
     idleCallback = callback;
+    idleData = data;
 }
 
-- (unsigned int) setTimeout:(void (*)(unsigned int timeoutId, glow *gl))callback wait:(unsigned int)wait {
+- (unsigned int) setTimeout:(void (*)(glow *gl, unsigned int timeoutId, void *data))callback wait:(unsigned int)wait data:(void*)data {
     id tId = [NSNumber numberWithInteger: timerId];
     NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:(double)wait/1000.0 target:self selector:@selector(timeoutTimerFired:) userInfo:tId repeats:NO];
     [[NSRunLoop currentRunLoop] addTimer:timeoutTimer forMode:NSDefaultRunLoopMode];
@@ -390,6 +411,7 @@
 
     timeoutTimers[timerId] = timeoutTimer;
     timeoutCallbacks[timerId] = callback;
+    timeoutData[timerId] = data;
     timerId = (timerId + 1) % GLOW_MAX_TIMERS;
     return [tId intValue];
 }
@@ -398,32 +420,39 @@
     [timeoutTimers[timeoutId] invalidate];
 }
 
-- (void) resizeFunction:(void (*)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl))callback {
+- (void) resizeFunction:(void (*)(glow *gl, int winId, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data))callback data:(void*)data {
     resizeCallback = callback;
+    resizeData = data;
 }
 
-- (void) mouseDownListener:(void (*)(unsigned short button, int x, int y, glow *gl))callback {
+- (void) mouseDownListener:(void (*)(glow *gl, int winId, unsigned short button, int x, int y, void *data))callback data:(void*)data {
     mouseDownCallback = callback;
+    mouseDownData = data;
 }
 
-- (void) mouseUpListener:(void (*)(unsigned short button, int x, int y, glow *gl))callback {
+- (void) mouseUpListener:(void (*)(glow *gl, int winId, unsigned short button, int x, int y, void *data))callback data:(void*)data {
     mouseUpCallback = callback;
+    mouseUpData = data;
 }
 
-- (void) mouseMoveListener:(void (*)(int x, int y, glow *gl))callback {
+- (void) mouseMoveListener:(void (*)(glow *gl, int winId, int x, int y, void *data))callback data:(void*)data {
     mouseMoveCallback = callback;
+    mouseMoveData = data;
 }
 
-- (void) scrollWheelListener:(void (*)(int dx, int dy, int x, int y, glow *gl))callback {
+- (void) scrollWheelListener:(void (*)(glow *gl, int winId, int dx, int dy, int x, int y, void *data))callback data:(void*)data {
     scrollWheelCallback = callback;
+    scrollWheelData = data;
 }
 
-- (void) keyDownListener:(void (*)(unsigned short key, int x, int y, glow *gl))callback {
+- (void) keyDownListener:(void (*)(glow *gl, int winId, unsigned short key, int x, int y, void *data))callback data:(void*)data {
     keyDownCallback = callback;
+    keyDownData = data;
 }
 
-- (void) keyUpListener:(void (*)(unsigned short key, int x, int y, glow *gl))callback {
+- (void) keyUpListener:(void (*)(glow *gl, int winId, unsigned short key, int x, int y, void *data))callback data:(void*)data {
     keyUpCallback = callback;
+    keyUpData = data;
 }
 
 @end

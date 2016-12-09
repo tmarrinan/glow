@@ -26,9 +26,11 @@ typedef uint32_t nsOpenGLPixelFormatAttribute;
 
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_CORE 1
-#define GLOW_BASE_WINDOW 0
-#define GLOW_HIDPI_WINDOW 1
-#define GLOW_BORDERLESS_WINDOW 2
+#define GLOW_FLAGS_NONE 0
+#define GLOW_FLAGS_HIDE_DOCK 1
+#define GLOW_WINDOW_BASE 0
+#define GLOW_WINDOW_HIDPI 1
+#define GLOW_WINDOW_BORDERLESS 2
 #define GLOW_CENTER_HORIZONTAL INT_MAX
 #define GLOW_CENTER_VERTICAL INT_MAX
 
@@ -49,12 +51,12 @@ typedef struct GLOW_CharGlyph {
 class glow {
 private:
 	nsAutoreleasePool *pool;
-	nsWindow *mainwindow;
-	nsOpenGLContext *glContext;
+	//nsWindow *mainwindow;
+	//nsOpenGLContext *glContext;
+	std::vector<nsWindow*> windowList;
+	std::vector<nsOpenGLContext*> glCtxList;
 
 	nsOpenGLPixelFormatAttribute glProfileAttrib;
-	bool hiDPISupport;
-	bool borderless;
 
 	bool windowRequiresResize;
 	int requestedWindowX;
@@ -67,42 +69,43 @@ private:
 	uint32_t offsetsFromUTF8[4];
 
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
-	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs);
+	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, unsigned int *baseline, std::vector<GLOW_CharGlyph> *glyphs);
 
 public:
 	glow() {};
 	~glow() {};
  
-	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype);
-	void createWindow(std::string title, int x, int y, unsigned int width, unsigned int height);
+	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags);
+	int createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype);
+	void setActiveWindow(int winId);
 
-	void renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl));
-	void idleFunction(void (*callback)(glow *gl));
-	void resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl));
-	unsigned int setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait);
+	void renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data);
+	void idleFunction(int winId, void (*callback)(glow *gl, int wid, void *data), void *data);
+	void resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data), void *data);
+	unsigned int setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data);
 	void cancelTimeout(unsigned int timeoutId);
 
-	void mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl));
-	void mouseUpListener(void (*callback)(unsigned short button, int x, int y, glow *gl));
-	void mouseMoveListener(void (*callback)(int x, int y, glow *gl));
-	void scrollWheelListener(void (*callback)(int dx, int dy, int x, int y, glow *gl));
-	void keyDownListener(void (*callback)(unsigned short key, int x, int y, glow *gl));
-	void keyUpListener(void (*callback)(unsigned short key, int x, int y, glow *gl));
+	void mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
+	void mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
+	void mouseMoveListener(int winId, void (*callback)(glow *gl, int wid, int x, int y, void *data), void *data);
+	void scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data), void *data);
+	void keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
+	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
 
-	void swapBuffers();
-	void requestRenderFrame();
-	void enableFullscreen();
-	void disableFullscreen();
-	void setWindowGeometry(int x, int y, unsigned int width, unsigned int height);
-	void exitFullScreenFinished();
-	void setWindowTitle(std::string title);
+	void swapBuffers(int winId);
+	void requestRenderFrame(int winId);
+	void enableFullscreen(int winId);
+	void disableFullscreen(int winId);
+	void setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height);
+	void exitFullScreenFinished(int winId);
+	void setWindowTitle(int winId, std::string title);
 	void runLoop();
 
 	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
 	void destroyFontFace(GLOW_FontFace **facePtr);
 	void setFontSize(GLOW_FontFace *face, unsigned int size);
-	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels);
-	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels);
+	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
+	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
 
 	void getGLVersions(std::string *glv, std::string *glslv);
 };
