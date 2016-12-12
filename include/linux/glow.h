@@ -90,6 +90,7 @@ private:
 	Atom stateMessage;
 	Atom fullscreenMessage;
 	Atom timeoutMessage;
+	bool hideDock;
 	unsigned int timerId;
 	timer_t timeoutTimers[GLOW_MAX_TIMERS];
 	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];
