@@ -4,27 +4,15 @@
 PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
 
 // GLOW C++ Interface
-void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags) {
 	glProfile = profile;
 	glCoreVMajor = vmajor;
 	glCoreVMinor = vminor;
-	hiDPISupport = windowtype & GLOW_HIDPI_WINDOW;
-	borderless = windowtype & GLOW_BORDERLESS_WINDOW;
 
 	mouseX = 0;
 	mouseY = 0;
 
 	timerId = 0;
-
-	renderCallback = NULL;
-	idleCallback = NULL;
-	resizeCallback = NULL;
-	keyDownCallback = NULL;
-	keyUpCallback = NULL;
-	mouseDownCallback = NULL;
-	mouseUpCallback = NULL;
-	mouseMoveCallback = NULL;
-	scrollWheelCallback = NULL;
 
 	if (XInitThreads() == 0) {
 		fprintf(stderr, "Failed to initialize X\n");
@@ -42,9 +30,13 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 		exit(1);
 	}
 
+	bool hideDock = flags & GLOW_FLAGS_HIDE_DOCK;
+
 	stateMessage = XInternAtom(display, "_NET_WM_STATE", False);
 	fullscreenMessage = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
 	timeoutMessage = XInternAtom(display, "TIMEOUT", False);
+
+	if (hideDock) /*TODO*/;
 
 	// initialize freetype text rendering
 	if(FT_Init_FreeType(&ft)) fprintf(stderr, "Error: could not init freetype library\n");
@@ -56,7 +48,7 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	capsmask = XkbKeysymToModifiers(display, XK_Caps_Lock);
 }
 
-void glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height) {	
+int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype) {	
 	int visualAttribs[] = {
 		GLX_X_RENDERABLE,  True,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
@@ -112,12 +104,16 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	swa.border_pixel = 0;
 	swa.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ButtonMotionMask;
 
-	window = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, (CWBorderPixel | CWColormap | CWEventMask), &swa);
-	if (!window) {
+	Window mainwindow = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, (CWBorderPixel | CWColormap | CWEventMask), &swa);
+	if (!mainwindow) {
 		fprintf(stderr, "Failed to create window\n");
 		exit(1);
 	}
 	XFree(vi);
+
+	int wid = windowList.size();
+	bool hiDPISupport = windowtype & GLOW_WINDOW_HIDPI;
+	bool borderless = windowtype & GLOW_WINDOW_BORDERLESS;
 
 	if (borderless) {
 		Atom wmHints = XInternAtom(display, "_MOTIF_WM_HINTS", False);
@@ -130,12 +126,12 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		} hints;
 		hints.flags = 2;
 		hints.decorations = 0;
-		XChangeProperty(display, window, wmHints, wmHints, 32, PropModeReplace, (unsigned char*) &hints, sizeof(hints) / sizeof(long));
+		XChangeProperty(display, mainwindow, wmHints, wmHints, 32, PropModeReplace, (unsigned char*) &hints, sizeof(hints) / sizeof(long));
 	}
 	
-	XStoreName(display, window, title.c_str());
+	XStoreName(display, mainwindow, title.c_str());
 
-	ctx = NULL;
+	GLXContext glContext = NULL;
 	if (glProfile == GLOW_OPENGL_CORE) {
 		if (!glXCreateContextAttribsARB) {
 			fprintf(stderr, "Failed to obtain OpenGL 3.0+ context\n");
@@ -148,18 +144,18 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 			GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
 			None
 		};
-		ctx = glXCreateContextAttribsARB(display, bestFbc, 0, True, glProfileAttribs);
+		glContext = glXCreateContextAttribsARB(display, bestFbc, 0, True, glProfileAttribs);
 	}
 	else {
-		ctx = glXCreateNewContext(display, bestFbc, GLX_RGBA_TYPE, 0, True);
+		glContext = glXCreateNewContext(display, bestFbc, GLX_RGBA_TYPE, 0, True);
 	}
 	XSync(display, False);
-	if (!glXIsDirect(display, ctx)) {
+	if (!glXIsDirect(display, glContext)) {
 		fprintf(stderr, "Warning: using indirect rendering context\n");
 	}
-	glXMakeCurrent(display, window, ctx);
+	glXMakeCurrent(display, mainwindow, glContext);
 
-	XMapWindow(display, window);
+	XMapWindow(display, mainwindow);
 
 	Screen *screen = XDefaultScreenOfDisplay(display);
 	int screenW = XWidthOfScreen(screen);
@@ -167,37 +163,72 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 
 	if (x == GLOW_CENTER_HORIZONTAL) x = (screenW / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (screenH / 2) - (height / 2);
-	prevX = x;
-	prevY = y;
-	prevW = width;
-	prevH = height;
-	fullscreen = false;
-	XMoveWindow(display, window, x, y);
+	prevX.push_back(x);
+	prevY.push_back(y);
+	prevW.push_back(width);
+	prevH.push_back(height);
+	fullscreen.push_back(false);
+	requiresRender.push_back(false);
+	initWindowPlacement.push_back(false);
+	isIdle.push_back(false);
+	XMoveWindow(display, mainwindow, x, y);
+	
+	windowList.push_back(mainwindow);
+	glCtxList.push_back(glContext);
+
+	renderCallback.push_back(NULL);
+	idleCallback.push_back(NULL);
+	resizeCallback.push_back(NULL);
+	mouseDownCallback.push_back(NULL);
+	mouseUpCallback.push_back(NULL);
+	mouseMoveCallback.push_back(NULL);
+	scrollWheelCallback.push_back(NULL);
+	keyDownCallback.push_back(NULL);
+	keyUpCallback.push_back(NULL);
+
+	renderData.push_back(NULL);
+	idleData.push_back(NULL);
+	resizeData.push_back(NULL);
+	mouseDownData.push_back(NULL);
+	mouseUpData.push_back(NULL);
+	mouseMoveData.push_back(NULL);
+	scrollWheelData.push_back(NULL);
+	keyDownData.push_back(NULL);
+	keyUpData.push_back(NULL);
+
+	return wid;
 }
 
-void glow::renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl)) {
-	renderCallback = callback;
+void glow::setActiveWindow(int winId) {
+	glXMakeCurrent(display, windowList[winId], glCtxList[winId]);
 }
 
-void glow::idleFunction(void (*callback)(glow *gl)) {
-	idleCallback = callback;
+void glow::renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data) {
+	renderCallback[winId] = callback;
+	renderData[winId] = data;
 }
 
-void glow::resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl)) {
-	resizeCallback = callback;
+void glow::idleFunction(int winId, void (*callback)(glow *gl, int wid, void *data), void *data) {
+	idleCallback[winId] = callback;
+	idleData[winId] = data;
 }
 
-unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait) {
+void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data), void *data) {
+	resizeCallback[winId] = callback;
+	resizeData[winId] = data;
+}
+
+unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
 	int tId = timerId;
 	struct sigevent se;
 	struct itimerspec ts;
 
-	GLOW_TimerData *data = (GLOW_TimerData*)malloc(sizeof(GLOW_TimerData));
-	data->glow_ptr = this;
-	data->timer_id = tId;
+	GLOW_TimerData *tdata = (GLOW_TimerData*)malloc(sizeof(GLOW_TimerData));
+	tdata->glow_ptr = this;
+	tdata->timer_id = tId;
 
 	se.sigev_notify = SIGEV_THREAD;
-	se.sigev_value.sival_ptr = data;
+	se.sigev_value.sival_ptr = tdata;
 	se.sigev_notify_function = timeoutTimerFired;// glow method?
 	se.sigev_notify_attributes = NULL;
 
@@ -207,6 +238,7 @@ unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl)
 	ts.it_interval.tv_nsec = 0;
 
 	timeoutCallbacks[tId] = callback;
+	timeoutData[tId] = data;
 
 	timer_create(CLOCK_MONOTONIC, &se, &timeoutTimers[tId]);
 	timer_settime(timeoutTimers[tId], 0, &ts, NULL);
@@ -226,11 +258,11 @@ void glow::timeoutTimerFired(union sigval arg) {
 	
 	XClientMessageEvent timeoutEvent;
 	timeoutEvent.type = ClientMessage;
-	timeoutEvent.window = data->glow_ptr->window;
+	timeoutEvent.window = data->glow_ptr->windowList[0];
 	timeoutEvent.message_type = data->glow_ptr->timeoutMessage;
 	timeoutEvent.format = 32;
 	timeoutEvent.data.l[0] = data->timer_id;
-	XSendEvent(data->glow_ptr->display, data->glow_ptr->window, False, 0, (XEvent*)&timeoutEvent);
+	XSendEvent(data->glow_ptr->display, data->glow_ptr->windowList[0], False, 0, (XEvent*)&timeoutEvent);
 	XFlush(data->glow_ptr->display);
 
 	XUnlockDisplay(data->glow_ptr->display);
@@ -239,47 +271,53 @@ void glow::timeoutTimerFired(union sigval arg) {
 	free(data);
 }
 
-void glow::mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
-	mouseDownCallback = callback;
+void glow::mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data) {
+	mouseDownCallback[winId] = callback;
+	mouseDownData[winId] = data;
 }
 
-void glow::mouseUpListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
-	mouseUpCallback = callback;
+void glow::mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data) {
+	mouseUpCallback[winId] = callback;
+	mouseUpData[winId] = data;
 }
 
-void glow::mouseMoveListener(void (*callback)(int x, int y, glow *gl)) {
-	mouseMoveCallback = callback;
+void glow::mouseMoveListener(int winId, void (*callback)(glow *gl, int wid, int x, int y, void *data), void *data) {
+	mouseMoveCallback[winId] = callback;
+	mouseMoveData[winId] = data;
 }
 
-void glow::scrollWheelListener(void (*callback)(int dx, int dy, int x, int y, glow *gl)) {
-	scrollWheelCallback = callback;
+void glow::scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data), void *data) {
+	scrollWheelCallback[winId] = callback;
+	scrollWheelData[winId] = data;
 }
 
-void glow::keyDownListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
-	keyDownCallback = callback;
+void glow::keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+	keyDownCallback[winId] = callback;
+	keyDownData[winId] = data;
 }
 
-void glow::keyUpListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
-	keyUpCallback = callback;
+void glow::keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+	keyUpCallback[winId] = callback;
+	keyUpData[winId] = data;
 }
 
-void glow::swapBuffers() {
-	glXSwapBuffers(display, window);
+void glow::swapBuffers(int winId) {
+	glXSwapBuffers(display, windowList[winId]);
 }
 
-void glow::requestRenderFrame() {
-	requiresRender = true;
+void glow::requestRenderFrame(int winId) {
+	requiresRender[winId] = true;
 }
 
-void glow::enableFullscreen() {
-	if (fullscreen) return;
+void glow::enableFullscreen(int winId) {
+	if (fullscreen[winId]) return;
 
-	fullscreen = true;
+	fullscreen[winId] = true;
 
 	XLockDisplay(display);
 	XEvent fsEvent;
 	fsEvent.type = ClientMessage;
-	fsEvent.xclient.window = window;
+	fsEvent.xclient.window = windowList[winId];
 	fsEvent.xclient.message_type = stateMessage;
 	fsEvent.xclient.format = 32;
 	fsEvent.xclient.data.l[0] = 1;
@@ -289,15 +327,15 @@ void glow::enableFullscreen() {
 	XUnlockDisplay(display);
 }
 
-void glow::disableFullscreen() {
-	if (!fullscreen) return;
+void glow::disableFullscreen(int winId) {
+	if (!fullscreen[winId]) return;
 
-	fullscreen = false;
+	fullscreen[winId] = false;
 
 	XLockDisplay(display);
 	XEvent fsEvent;
 	fsEvent.type = ClientMessage;
-	fsEvent.xclient.window = window;
+	fsEvent.xclient.window = windowList[winId];
 	fsEvent.xclient.message_type = stateMessage;
 	fsEvent.xclient.format = 32;
 	fsEvent.xclient.data.l[0] = 0;
@@ -307,15 +345,15 @@ void glow::disableFullscreen() {
 	XUnlockDisplay(display);
 }
 
-void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
-	bool wasFullscreen = fullscreen;
-	fullscreen = false;	
+void glow::setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height) {
+	bool wasFullscreen = fullscreen[winId];
+	fullscreen[winId] = false;	
 
 	XLockDisplay(display);
 	if (wasFullscreen) {
 		XEvent fsEvent;
 		fsEvent.type = ClientMessage;
-		fsEvent.xclient.window = window;
+		fsEvent.xclient.window = windowList[winId];
 		fsEvent.xclient.message_type = stateMessage;
 		fsEvent.xclient.format = 32;
 		fsEvent.xclient.data.l[0] = 0;
@@ -331,13 +369,13 @@ void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int heig
 	if (x == GLOW_CENTER_HORIZONTAL) x = (screenW / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (screenH / 2) - (height / 2);
 
-	XMoveResizeWindow(display, window, x, y, width, height);
+	XMoveResizeWindow(display, windowList[winId], x, y, width, height);
 	XUnlockDisplay(display);
 }
 
-void glow::setWindowTitle(std::string title) {
+void glow::setWindowTitle(int winId, std::string title) {
 	XLockDisplay(display);
-	XStoreName(display, window, title.c_str());
+	XStoreName(display, windowList[winId], title.c_str());
 	XUnlockDisplay(display);
 }
 
@@ -345,15 +383,12 @@ void glow::runLoop() {
 	Atom idleMessage = XInternAtom(display, "IDLE", False);
 	Atom wmProtocols = XInternAtom(display, "WM_PROTOCOLS", False);
 	Atom wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False);
-	XSetWMProtocols(display, window, &wmDeleteMessage, 1);
 
 	long startTime;
     long prevTime;
 	struct timeval tp;
-	requiresRender = false;
-
-	bool initWindowPlacement = false;
-
+	
+	int i;
 	unsigned short btn;
 	int dx;
 	int dy;
@@ -365,75 +400,83 @@ void glow::runLoop() {
 	XkbStateRec kstate;
 
 	XEvent event;
-	bool isIdle = false;
+	int windowCount = 0;
 	bool running = true;
 	while (running) {
 		do {
 			XNextEvent(display, &event);
-			if (event.xany.window != window) continue;
+			int winId = -1;
+			Window eWin = event.xany.window;
+			for (i=0; i<windowList.size(); i++) {
+				if (eWin == windowList[i]) winId = i;
+			}	
+			if (winId < 0) continue;
+
 			XLockDisplay(display);		
 
 			switch (event.type) {
 				case MapNotify:
-					requiresRender = true;
+					requiresRender[winId] = true;
    					gettimeofday(&tp, NULL);
     				startTime = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     				prevTime = startTime;
-					isIdle = true;
+					isIdle[winId] = true;
+					windowCount++;
+					XSetWMProtocols(display, windowList[winId], &wmDeleteMessage, 1);
 					break;
 				case ConfigureNotify:
-					if (!initWindowPlacement) {
-						if (event.xconfigure.x == prevX && event.xconfigure.y == prevY && event.xconfigure.width == prevW && event.xconfigure.height == prevH) {
-							initWindowPlacement = true;
+					if (!initWindowPlacement[winId]) {
+						if (event.xconfigure.x == prevX[winId] && event.xconfigure.y == prevY[winId] && event.xconfigure.width == prevW[winId] && event.xconfigure.height == prevH[winId]) {
+							initWindowPlacement[winId] = true;
 						}
 					}
 					else {
-						if (resizeCallback && (prevW != event.xconfigure.width || prevH != event.xconfigure.height)) {
-							resizeCallback(event.xconfigure.width, event.xconfigure.height, event.xconfigure.width, event.xconfigure.height, this);
+						if (resizeCallback[winId] && (prevW[winId] != event.xconfigure.width || prevH[winId] != event.xconfigure.height)) {
+							resizeCallback[winId](this, winId, event.xconfigure.width, event.xconfigure.height, event.xconfigure.width, event.xconfigure.height, resizeData[winId]);
 						}
-						prevX = event.xconfigure.x;
-						prevY = event.xconfigure.y;
-						prevW = event.xconfigure.width;
-						prevH = event.xconfigure.height;
+						prevX[winId] = event.xconfigure.x;
+						prevY[winId] = event.xconfigure.y;
+						prevW[winId] = event.xconfigure.width;
+						prevH[winId] = event.xconfigure.height;
 					}
 					break;
 				case KeyPress:
-					if (!keyDownCallback) break;
+					if (!keyDownCallback[winId]) break;
 
 					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
 					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyDownCallback(buffer[0], mouseX, mouseY, this);
+						keyDownCallback[winId](this, winId, buffer[0], mouseX, mouseY, keyDownData[winId]);
 					}
 					else {
 						if (keysym == XK_Caps_Lock) {
 							XkbGetState(display, XkbUseCoreKbd, &kstate);
 							if (kstate.locked_mods & capsmask) {
-								keyDownCallback(specialKey(keysym), mouseX, mouseY, this);
+								keyDownCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyDownData[winId]);
 							}
 							else {
-								keyUpCallback(specialKey(keysym), mouseX, mouseY, this);
+								keyUpCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyDownData[winId]);
 							}
 						}
 						else {
-							keyDownCallback(specialKey(keysym), mouseX, mouseY, this);
+							keyDownCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyDownData[winId]);
 						}
 					}
 					break;
 				case KeyRelease:
-					if (!keyUpCallback) break;
+					if (!keyUpCallback[winId]) break;
 
 					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
 					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyUpCallback(buffer[0], mouseX, mouseY, this);
+						keyUpCallback[winId](this, winId, buffer[0], mouseX, mouseY, keyUpData[winId]);
 					}
 					else {
 						if (keysym != XK_Caps_Lock) {
-							keyUpCallback(specialKey(keysym), mouseX, mouseY, this);
+							keyUpCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyUpData[winId]);
 						}
 					}
 					break;
 				case ButtonPress:
-					if (!mouseDownCallback && !scrollWheelCallback) break;
+					if (!mouseDownCallback[winId] && !scrollWheelCallback[winId]) break;
 
 					switch (event.xbutton.button) {
 						case Button1:
@@ -466,13 +509,13 @@ void glow::runLoop() {
 							btn = GLOW_MOUSE_BUTTON_UNKNOWN;
 							break;
 					}
-					if (btn == GLOW_MOUSE_SCROLL && scrollWheelCallback)
-						scrollWheelCallback(dx, dy, mouseX, mouseY, this); 
-					else if (btn != GLOW_MOUSE_BUTTON_UNKNOWN && mouseDownCallback)
-						mouseDownCallback(btn, mouseX, mouseY, this);
+					if (btn == GLOW_MOUSE_SCROLL && scrollWheelCallback[winId])
+						scrollWheelCallback[winId](this, winId, dx, dy, mouseX, mouseY, scrollWheelData[winId]); 
+					else if (btn != GLOW_MOUSE_BUTTON_UNKNOWN && mouseDownCallback[winId])
+						mouseDownCallback[winId](this, winId, btn, mouseX, mouseY, mouseDownData[winId]);
 					break;
 				case ButtonRelease:
-					if (!mouseUpCallback) break;
+					if (!mouseUpCallback[winId]) break;
 
 					switch (event.xbutton.button) {
 						case Button1:
@@ -485,25 +528,30 @@ void glow::runLoop() {
 							btn = GLOW_MOUSE_BUTTON_UNKNOWN;
 							break;
 					}
-					if (btn != GLOW_MOUSE_BUTTON_UNKNOWN) mouseUpCallback(btn, mouseX, mouseY, this);
+					if (btn != GLOW_MOUSE_BUTTON_UNKNOWN) mouseUpCallback[winId](this, winId, btn, mouseX, mouseY, mouseUpData[winId]);
 					break;
 				case MotionNotify:
 					mouseX = event.xmotion.x;
 					mouseY = event.xmotion.y;
-					if (!mouseMoveCallback) break;
+					if (!mouseMoveCallback[winId]) break;
 
-					mouseMoveCallback(mouseX, mouseY, this);
+					mouseMoveCallback[winId](this, winId, mouseX, mouseY, mouseMoveData[winId]);
 					break;
 				case ClientMessage:
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
-						running = false;
+						if (windowCount == 1) running = false;
+						isIdle[winId] = false;
+						requiresRender[winId] = false;
+						glXDestroyContext(display, glCtxList[winId]);
+						XDestroyWindow(display, windowList[winId]);
+						windowCount--;
 					}
 					else if (event.xclient.message_type == timeoutMessage) {						
-						timeoutCallbacks[event.xclient.data.l[0]](event.xclient.data.l[0], this);
+						timeoutCallbacks[event.xclient.data.l[0]](this, event.xclient.data.l[0], timeoutData[event.xclient.data.l[0]]);
 					}
 					else if (event.xclient.message_type == idleMessage) {
-						idleCallback(this);
-						isIdle = true;
+						idleCallback[winId](this, winId, idleData[winId]);
+						isIdle[winId] = true;
 					}
 					break;
 				default:
@@ -514,30 +562,30 @@ void glow::runLoop() {
 
 		if (!running) break;
 
-		if (isIdle && idleCallback) {
-			XLockDisplay(display);
-			isIdle = false;
-			XClientMessageEvent idleEvent;
-			idleEvent.type = ClientMessage;
-			idleEvent.window = window;
-			idleEvent.message_type = idleMessage;
-			idleEvent.format = 32;
-			idleEvent.data.l[0] = 0;
-			XSendEvent(display, window, False, 0, (XEvent*)&idleEvent);
-			XUnlockDisplay(display);
-		}
-		if (requiresRender && renderCallback) {
-			struct timeval tp;
-			gettimeofday(&tp, NULL);
-			long now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-			renderCallback(now - startTime, now - prevTime, this);
-			prevTime = now;
-			requiresRender = false;
+		for (i=0; i<windowList.size(); i++) {
+			if (isIdle[i] && idleCallback[i]) {
+				XLockDisplay(display);
+				isIdle[i] = false;
+				XClientMessageEvent idleEvent;
+				idleEvent.type = ClientMessage;
+				idleEvent.window = windowList[i];
+				idleEvent.message_type = idleMessage;
+				idleEvent.format = 32;
+				idleEvent.data.l[0] = 0;
+				XSendEvent(display, windowList[i], False, 0, (XEvent*)&idleEvent);
+				XUnlockDisplay(display);
+			}
+			if (requiresRender[i] && renderCallback[i]) {
+				struct timeval tp;
+				gettimeofday(&tp, NULL);
+				long now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+				renderCallback[i](this, i, now - startTime, now - prevTime, renderData[i]);
+				prevTime = now;
+				requiresRender[i] = false;
+			}
 		}
 	}
 
-	glXDestroyContext(display, ctx);
-	XDestroyWindow(display, window);
 	XCloseDisplay(display);
 }
 
@@ -662,8 +710,11 @@ void glow::convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* 
 	*target = ch;
 }
 
-void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs) {
+void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, unsigned int *baseline, std::vector<GLOW_CharGlyph> *glyphs) {
 	int i = 0;
+	int top = 0;
+	int bottom = 0;
+
 	*width = 0;
 	unsigned char *unicode = (unsigned char*)text.c_str();
 	do {
@@ -704,20 +755,26 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 		(*glyphs)[c].advanceX = face->face->glyph->advance.x;
 
 		*width += (*glyphs)[c].advanceX / 64;
+		if ((*glyphs)[c].top > top) {
+			top = (*glyphs)[c].top;
+			*baseline = top;
+		}
+		if (((int)((*glyphs)[c].top) - (int)((*glyphs)[c].height)) < bottom) {
+			bottom = (int)((*glyphs)[c].top) - (int)((*glyphs)[c].height);
+		}
 	} while (i < text.length());
 
-	*height = (3 * face->size) / 2;
+	*height = top - bottom;
 }
 
-void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
+void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels) {
 	int i, j, k;
 	std::vector<GLOW_CharGlyph> glyphs;
 
-	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
+	getRenderedGlyphsFromString(face, utf8Text, width, height, baseline, &glyphs);
 
 	*width = (*width) + (4 - ((*width) % 4));
 	*height = (*height) + (4 - ((*height) % 4));
-	unsigned int bline = face->size / 2;
 
 	int size = (*width) * (*height);
 	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
@@ -727,11 +784,11 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 	int pt, ix, iy, idx;
 	for (i=0; i<glyphs.size(); i++) {
 		for (j=0; j<glyphs[i].height; j++) {
+			pt = (*baseline) - glyphs[i].top;
+			iy = pt + j;
+			if (flipY) iy = ((*height) - iy);
 			for (k=0; k<glyphs[i].width; k++) {
-				pt = (*height) - (bline + glyphs[i].top);
 				ix = glyphs[i].left + x + k;
-				iy = pt + j;
-				if (flipY) iy = ((*height) - iy);
 				idx = (*width) * iy + ix;
 				if (idx < 0 || idx >= size) continue;
 				(*pixels)[idx] = glyphs[i].pixels[glyphs[i].width * j + k];
@@ -742,15 +799,15 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 	}
 }
 
-void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
+void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels) {
 	int i, j, k;
 	std::vector<GLOW_CharGlyph> glyphs;
 
-	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
+	getRenderedGlyphsFromString(face, utf8Text, width, height, baseline, &glyphs);
 
 	*width = (*width) + (4 - ((*width) % 4));
 	*height = (*height) + (4 - ((*height) % 4));
-	unsigned int bline = face->size / 2;
+	unsigned int bline = *baseline;
 
 	int size = (*width) * (*height) * 4;
 	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
@@ -760,11 +817,11 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 	int pt, ix, iy, idx;
 	for (i=0; i<glyphs.size(); i++) {
 		for (j=0; j<glyphs[i].height; j++) {
+			pt = (*baseline) - glyphs[i].top;
+			iy = pt + j;
+			if (flipY) iy = ((*height) - iy);
 			for (k=0; k<glyphs[i].width; k++) {
-				pt = (*height) - (bline + glyphs[i].top);
 				ix = glyphs[i].left + x + k;
-				iy = pt + j;
-				if (flipY) iy = ((*height) - iy);
 				idx = (4 * (*width) * iy) + (4 * ix);
 				if (idx < 0 || idx >= size) continue;
 				(*pixels)[idx + 0] = color[0];

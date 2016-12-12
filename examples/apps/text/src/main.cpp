@@ -21,8 +21,10 @@ void idle(glow *gl, int win, void *data);
 void resize(glow *gl, int win, unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, void *data);
 
 int main (int argc, char **argv) {
-	appData *data = (appData*)malloc(sizeof(appData));
+	printf("hello\n");
+	appData *data = new appData;
 	data->exePath = getExePath(argv[0]);
+	printf("exe path: %s\n",data->exePath.c_str());
 
 	glow *gl = new glow();
 	gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
@@ -37,8 +39,10 @@ int main (int argc, char **argv) {
 
 string getExePath(char* exe) {
 	string path = exe;
+	printf("exe: %s\n", path.c_str());
 	replace(path.begin(), path.end(), '\\', '/');
 	int lsep = path.rfind('/');
+	printf("p: %s\n", path.substr(0, lsep+1).c_str());
 
 	return path.substr(0, lsep+1);
 }

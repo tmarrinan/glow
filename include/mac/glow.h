@@ -51,8 +51,6 @@ typedef struct GLOW_CharGlyph {
 class glow {
 private:
 	nsAutoreleasePool *pool;
-	//nsWindow *mainwindow;
-	//nsOpenGLContext *glContext;
 	std::vector<nsWindow*> windowList;
 	std::vector<nsOpenGLContext*> glCtxList;
 
