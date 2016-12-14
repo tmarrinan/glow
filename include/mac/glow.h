@@ -24,6 +24,8 @@ typedef uint32_t nsOpenGLPixelFormatAttribute;
 
 #include "glowEvents.h"
 
+#define GLOW_MAX_WINDOWS 32
+
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_CORE 1
 #define GLOW_FLAGS_NONE 0
@@ -53,6 +55,7 @@ private:
 	nsAutoreleasePool *pool;
 	std::vector<nsWindow*> windowList;
 	std::vector<nsOpenGLContext*> glCtxList;
+	std::vector<bool> winIsOpen;
 
 	nsOpenGLPixelFormatAttribute glProfileAttrib;
 
@@ -91,11 +94,12 @@ public:
 	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
 
 	void swapBuffers(int winId);
-	void requestRenderFrame(int winId);
+	bool requestRenderFrame(int winId);
 	void enableFullscreen(int winId);
 	void disableFullscreen(int winId);
-	void setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height);
+	void windowClosed(nsWindow *window);
 	void exitFullScreenFinished(int winId);
+	void setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height);
 	void setWindowTitle(int winId, std::string title);
 	void runLoop();
 

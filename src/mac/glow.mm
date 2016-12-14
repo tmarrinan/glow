@@ -6,11 +6,25 @@
 // Application Delegate (quit app when window is closed)
 @interface GLDelegate : NSObject <NSApplicationDelegate>
 
+-(void) init:(glow *)ptr;
+-(void) applicationDidFinishLaunching:(NSNotification *)notification;
+-(void) windowClosing:(NSNotification *)notification;
 -(BOOL) applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app;
 
 @end
 
-@implementation GLDelegate
+@implementation GLDelegate {
+	glow *glowPtr;
+}
+-(void) init:(glow *)ptr {
+	glowPtr = ptr;
+}
+-(void) applicationDidFinishLaunching:(NSNotification *)notification {
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowClosing:) name:NSWindowWillCloseNotification object:nil];
+}
+-(void) windowClosing:(NSNotification *)notification {
+	glowPtr->windowClosed((NSWindow*)[notification object]);
+}
 -(BOOL) applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app {
     return YES;
 }
@@ -19,6 +33,7 @@
 // Window Delegate (gets window notification messages)
 @interface WindowDelegate : NSObject <NSWindowDelegate>
 
+-(void) init:(glow *)ptr winId:(int)wid;
 -(void) windowDidExitFullScreen:(NSNotification *)notification;
 
 @end
@@ -42,6 +57,7 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	pool = [[NSAutoreleasePool alloc] init];
 
 	GLDelegate *glDelegate = [[GLDelegate alloc] init];
+	[glDelegate init:this];
 	[[NSApplication sharedApplication] setDelegate:glDelegate];
 
 	if (profile == GLOW_OPENGL_CORE) {
@@ -88,6 +104,9 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 }
 
 int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype) {
+	if (windowList.size() >= GLOW_MAX_WINDOWS)
+		return -1;
+
 	NSRect screen = [[NSScreen mainScreen] frame];
 	if (x == GLOW_CENTER_HORIZONTAL) x = ((int)screen.size.width / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = ((int)screen.size.height / 2) - (height / 2);
@@ -132,6 +151,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 
 	windowList.push_back(mainwindow);
 	glCtxList.push_back(glContext);
+	winIsOpen.push_back(true);
 
 	return wid;
 }
@@ -157,7 +177,12 @@ void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigne
 }
 
 unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
-	glView* view = (glView*)[glCtxList[0] view];
+	int i;
+	for(i=0; i<winIsOpen.size(); i++) {
+		if (winIsOpen[i]) break;
+	}
+
+	glView* view = (glView*)[glCtxList[i] view];
 	unsigned int t = [view setTimeout:callback wait:wait data:data];
 	return t;
 }
@@ -202,9 +227,13 @@ void glow::swapBuffers(int winId) {
 	[view swapBuffers];
 }
 
-void glow::requestRenderFrame(int winId) {
-	glView* view = (glView*)[glCtxList[winId] view];
-	[view requestRenderFrame];
+bool glow::requestRenderFrame(int winId) {
+	if (winIsOpen[winId]) {
+		glView* view = (glView*)[glCtxList[winId] view];
+		[view requestRenderFrame];
+		return true;
+	}
+	return false;
 }
 
 void glow::enableFullscreen(int winId) {
@@ -241,6 +270,21 @@ void glow::setWindowGeometry(int winId, int x, int y, unsigned int width, unsign
 void glow::setWindowTitle(int winId, std::string title) {
 	NSString* appTitle = [NSString stringWithUTF8String:title.c_str()];
 	[windowList[winId] setTitle:appTitle];
+}
+
+void glow::windowClosed(NSWindow *window) {
+	int winId = std::find(windowList.begin(), windowList.end(), window) - windowList.begin();
+	if (winId < windowList.size()) {
+		winIsOpen[winId] = false;
+
+		glView* view = (glView*)[glCtxList[winId] view];
+		[view release];
+		[glCtxList[winId] release];
+		[windowList[winId] release];
+
+		glCtxList[winId] = NULL;
+		windowList[winId] = NULL;
+	}
 }
 
 void glow::exitFullScreenFinished(int winId) {
