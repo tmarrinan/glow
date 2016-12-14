@@ -48,6 +48,9 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 }
 
 int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype) {	
+	if (windowList.size() >= GLOW_MAX_WINDOWS)
+		return -1;
+	
 	int visualAttribs[] = {
 		GLX_X_RENDERABLE,  True,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
@@ -90,7 +93,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	}
 	if (bestFbcIdx < 0) {
 		fprintf(stderr, "Failed to find a suitable framebuffer configuration\n");
-		exit(1);
+		return -1;
 	}
 	GLXFBConfig bestFbc = fbc[bestFbcIdx];
 	XFree(fbc);
@@ -106,7 +109,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	Window mainwindow = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, width, height, 0, vi->depth, InputOutput, vi->visual, (CWBorderPixel | CWColormap | CWEventMask), &swa);
 	if (!mainwindow) {
 		fprintf(stderr, "Failed to create window\n");
-		exit(1);
+		return -1;
 	}
 	XFree(vi);
 
@@ -134,7 +137,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	if (glProfile == GLOW_OPENGL_CORE) {
 		if (!glXCreateContextAttribsARB) {
 			fprintf(stderr, "Failed to obtain OpenGL 3.0+ context\n");
-			exit(1);
+			return -1;
 		}
 		int glProfileAttribs[] = {
 			GLX_CONTEXT_MAJOR_VERSION_ARB, glCoreVMajor,
@@ -170,10 +173,14 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	requiresRender.push_back(false);
 	initWindowPlacement.push_back(false);
 	isIdle.push_back(false);
+	winIsOpen.push_back(false);
 	XMoveWindow(display, mainwindow, x, y);
 	
 	windowList.push_back(mainwindow);
 	glCtxList.push_back(glContext);
+
+	startTime.push_back(0);
+	prevTime.push_back(0);
 
 	renderCallback.push_back(NULL);
 	idleCallback.push_back(NULL);
@@ -228,7 +235,7 @@ unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId,
 
 	se.sigev_notify = SIGEV_THREAD;
 	se.sigev_value.sival_ptr = tdata;
-	se.sigev_notify_function = timeoutTimerFired;// glow method?
+	se.sigev_notify_function = timeoutTimerFired;
 	se.sigev_notify_attributes = NULL;
 
 	ts.it_value.tv_sec = wait / 1000;
@@ -254,14 +261,19 @@ void glow::timeoutTimerFired(union sigval arg) {
 	GLOW_TimerData *data = (GLOW_TimerData*)arg.sival_ptr;
 
 	XLockDisplay(data->glow_ptr->display);
+
+	int i;
+	for(i=0; i<data->glow_ptr->winIsOpen.size(); i++) {
+		if (data->glow_ptr->winIsOpen[i]) break;
+	}
 	
 	XClientMessageEvent timeoutEvent;
 	timeoutEvent.type = ClientMessage;
-	timeoutEvent.window = data->glow_ptr->windowList[0];
+	timeoutEvent.window = data->glow_ptr->windowList[i];
 	timeoutEvent.message_type = data->glow_ptr->timeoutMessage;
 	timeoutEvent.format = 32;
 	timeoutEvent.data.l[0] = data->timer_id;
-	XSendEvent(data->glow_ptr->display, data->glow_ptr->windowList[0], False, 0, (XEvent*)&timeoutEvent);
+	XSendEvent(data->glow_ptr->display, data->glow_ptr->windowList[i], False, 0, (XEvent*)&timeoutEvent);
 	XFlush(data->glow_ptr->display);
 
 	XUnlockDisplay(data->glow_ptr->display);
@@ -304,8 +316,12 @@ void glow::swapBuffers(int winId) {
 	glXSwapBuffers(display, windowList[winId]);
 }
 
-void glow::requestRenderFrame(int winId) {
-	requiresRender[winId] = true;
+bool glow::requestRenderFrame(int winId) {
+	if (winIsOpen[winId]) {
+		requiresRender[winId] = true;
+		return true;
+	}
+	return false;
 }
 
 void glow::enableFullscreen(int winId) {
@@ -383,8 +399,6 @@ void glow::runLoop() {
 	Atom wmProtocols = XInternAtom(display, "WM_PROTOCOLS", False);
 	Atom wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False);
 
-	long startTime; /*TODO: update per window*/
-    long prevTime;  /*TODO: update per window*/
 	struct timeval tp;
 	
 	int i;
@@ -417,17 +431,16 @@ void glow::runLoop() {
 				case MapNotify:
 					requiresRender[winId] = true;
    					gettimeofday(&tp, NULL);
-    				startTime = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    				prevTime = startTime;
+    				startTime[winId] = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    				prevTime[winId] = startTime[winId];
 					isIdle[winId] = true;
+					winIsOpen[winId] = true;
 					windowCount++;
 					XSetWMProtocols(display, windowList[winId], &wmDeleteMessage, 1);
 					break;
 				case ConfigureNotify:
 					if (!initWindowPlacement[winId]) {
-						if (event.xconfigure.x == prevX[winId] && event.xconfigure.y == prevY[winId] && event.xconfigure.width == prevW[winId] && event.xconfigure.height == prevH[winId]) {
-							initWindowPlacement[winId] = true;
-						}
+						initWindowPlacement[winId] = true;
 					}
 					else {
 						if (resizeCallback[winId] && (prevW[winId] != event.xconfigure.width || prevH[winId] != event.xconfigure.height)) {
@@ -544,6 +557,7 @@ void glow::runLoop() {
 						requiresRender[winId] = false;
 						glXDestroyContext(display, glCtxList[winId]);
 						XDestroyWindow(display, windowList[winId]);
+						winIsOpen[winId] = false;
 						windowCount--;
 					}
 					else if (event.xclient.message_type == timeoutMessage) {						
@@ -579,8 +593,9 @@ void glow::runLoop() {
 				struct timeval tp;
 				gettimeofday(&tp, NULL);
 				long now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-				renderCallback[i](this, i, now - startTime, now - prevTime, renderData[i]);
-				prevTime = now;
+				glXMakeCurrent(display, windowList[i], glCtxList[i]);
+				renderCallback[i](this, i, now - startTime[i], now - prevTime[i], renderData[i]);
+				prevTime[i] = now;
 				requiresRender[i] = false;
 			}
 		}
@@ -842,7 +857,7 @@ void glow::getGLVersions(std::string *glv, std::string *glslv) {
     unsigned int i, j;
 	for (i = 0; i < 2; i++) {
 		std::string version = (const char*)glGetString(type[i]);
-		int end = 0;
+		int end = version.length();
 		int dot = 0;
 		for (j=0; j<version.length(); j++){
 			if (version[j] == '.') {

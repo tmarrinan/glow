@@ -943,7 +943,7 @@ void glow::getGLVersions(std::string *glv, std::string *glslv) {
     unsigned int i, j;
 	for (i = 0; i < 2; i++) {
 		std::string version = (const char*)glGetString(type[i]);
-		int end = 0;
+		int end = version.length();
 		int dot = 0;
 		for (j=0; j<version.length(); j++){
 			if (version[j] == '.') {
@@ -958,3 +958,4 @@ void glow::getGLVersions(std::string *glv, std::string *glslv) {
 		*(v[i]) = version.substr(0, end);
 	}
 }
+

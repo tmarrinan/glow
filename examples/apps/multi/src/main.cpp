@@ -37,7 +37,7 @@ int main (int argc, char **argv) {
 }
 
 void display1(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
-    float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
+	float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
 	
 	glClearColor(0.2*c, 0.2*c, 0.8*c, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -46,7 +46,7 @@ void display1(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
 }
 
 void display2(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
-    float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
+	float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
 	
 	glClearColor(0.8*c, 0.2*c, 0.2*c, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -63,7 +63,6 @@ void resize(glow *gl, int win, unsigned int wW, unsigned int wH, unsigned int rW
 void animate(glow *gl, unsigned int id, void *data) {
 	int win = *((int*)data);
 	
-	gl->requestRenderFrame(win);
-	
-	gl->setTimeout(animate, 100, data);
+	if (gl->requestRenderFrame(win))
+		gl->setTimeout(animate, 100, data);
 }

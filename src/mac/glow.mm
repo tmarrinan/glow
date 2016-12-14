@@ -426,7 +426,7 @@ void glow::getGLVersions(std::string *glv, std::string *glslv) {
     unsigned int i, j;
 	for (i = 0; i < 2; i++) {
 		std::string version = (const char*)glGetString(type[i]);
-		int end = 0;
+		int end = version.length();
 		int dot = 0;
 		for (j=0; j<version.length(); j++){
 			if (version[j] == '.') {
@@ -440,23 +440,5 @@ void glow::getGLVersions(std::string *glv, std::string *glslv) {
 		}
 		*(v[i]) = version.substr(0, end);
 	}
-	/*std::string version = (const char *)glGetString(GL_VERSION);
-
-    int i;
-    int end = 0;
-    int dot = 0;
-    for (i=0; i<version.length(); i++){
-        if (version[i] == '.') {
-            dot++;
-            if (dot == 1) continue;
-        }
-        if (version[i] < 48 || version[i] > 57) {
-            end = i;
-            break;
-        }
-    }
-
-    *glv = version.substr(0, end);
-    *glslv = (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
-	*/
 }
+

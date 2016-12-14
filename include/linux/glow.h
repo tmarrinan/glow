@@ -31,6 +31,7 @@
 #endif
 
 #define GLOW_MAX_TIMERS 128
+#define GLOW_MAX_WINDOWS 32
 
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_CORE 1
@@ -83,10 +84,13 @@ private:
 	std::vector<bool> fullscreen;
 	int mouseX;
     int mouseY;
+	std::vector<long> startTime;
+	std::vector<long> prevTime;
 	unsigned int capsmask;
 	std::vector<bool> requiresRender;
 	std::vector<bool> initWindowPlacement;
 	std::vector<bool> isIdle;
+	std::vector<bool> winIsOpen;
 	Atom stateMessage;
 	Atom fullscreenMessage;
 	Atom timeoutMessage;
@@ -147,7 +151,7 @@ public:
 	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
 
 	void swapBuffers(int winId);
-	void requestRenderFrame(int winId);
+	bool requestRenderFrame(int winId);
 	void enableFullscreen(int winId);
 	void disableFullscreen(int winId);
 	void setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height);
