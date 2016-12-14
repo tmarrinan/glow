@@ -87,37 +87,45 @@ $(GLOW_OBJDIR):
 
 endif
 
-test: bin text multi interact
+test: bin interact multi text
 
-bin:	
+bin: ./examples/bin
+
+./examples/bin:
 	mkdir -p $(TEST_BIN)
 
-text: text/main.o
-	$(CXX) -o $(TEST_BIN)/text ./examples/apps/text/objs/main.o $(TEST_LIB)
+interact: ./examples/bin/interact
 
-text/main.o: | ./examples/apps/text/objs
-	$(CXX) -c -o ./examples/apps/text/objs/main.o ./examples/apps/text/src/main.cpp $(TEST_INC)
+./examples/bin/interact: ./examples/apps/interact/objs/main.o
+	$(CXX) -o $(TEST_BIN)/interact ./examples/apps/interact/objs/main.o $(TEST_LIB)
 
-./examples/apps/text/objs:
-	mkdir -p ./examples/apps/text/objs
+./examples/apps/interact/objs/main.o: ./examples/apps/interact/objs ./examples/apps/interact/src/main.cpp
+	$(CXX) -c -o ./examples/apps/interact/objs/main.o ./examples/apps/interact/src/main.cpp $(TEST_INC)
 
-multi: multi/main.o
+./examples/apps/interact/objs:
+	mkdir -p ./examples/apps/interact/objs
+
+multi: ./examples/bin/multi
+
+./examples/bin/multi: ./examples/apps/multi/objs/main.o
 	$(CXX) -o $(TEST_BIN)/multi ./examples/apps/multi/objs/main.o $(TEST_LIB)
 
-multi/main.o: | ./examples/apps/multi/objs
+./examples/apps/multi/objs/main.o: ./examples/apps/multi/objs ./examples/apps/multi/src/main.cpp
 	$(CXX) -c -o ./examples/apps/multi/objs/main.o ./examples/apps/multi/src/main.cpp $(TEST_INC)
 
 ./examples/apps/multi/objs:
 	mkdir -p ./examples/apps/multi/objs
 
-interact: interact/main.o
-	$(CXX) -o $(TEST_BIN)/interact ./examples/apps/interact/objs/main.o $(TEST_LIB)
+text: ./examples/bin/text
 
-interact/main.o: | ./examples/apps/interact/objs
-	$(CXX) -c -o ./examples/apps/interact/objs/main.o ./examples/apps/interact/src/main.cpp $(TEST_INC)
+./examples/bin/text: ./examples/apps/text/objs/main.o
+	$(CXX) -o $(TEST_BIN)/text ./examples/apps/text/objs/main.o $(TEST_LIB)
 
-./examples/apps/interact/objs:
-	mkdir -p ./examples/apps/interact/objs
+./examples/apps/text/objs/main.o: ./examples/apps/text/objs ./examples/apps/text/src/main.cpp
+	$(CXX) -c -o ./examples/apps/text/objs/main.o ./examples/apps/text/src/main.cpp $(TEST_INC)
+
+./examples/apps/text/objs:
+	mkdir -p ./examples/apps/text/objs
 
 
 install: $(GLOW_LIBS_D)
