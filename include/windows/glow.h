@@ -87,6 +87,7 @@ private:
 	unsigned int capsmask;
 	std::vector<bool> requiresRender;
 	std::vector<bool> isIdle;
+	std::vector<bool> winIsOpen;
 	unsigned int timerId;
 	UINT_PTR idleTimerId;
 	WPARAM IDLE_MESSAGE;
@@ -151,7 +152,7 @@ public:
 	GLOW_API void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
 
 	GLOW_API void swapBuffers(int winId);
-	GLOW_API void requestRenderFrame(int winId);
+	GLOW_API bool requestRenderFrame(int winId);
 	GLOW_API void enableFullscreen(int winId);
 	GLOW_API void disableFullscreen(int winId);
 	GLOW_API void setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height);

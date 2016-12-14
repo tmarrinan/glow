@@ -1,0 +1,15 @@
+Build Commands (from 'glow' directory):
+ - GLOW DLL
+    > mkdir objs
+	> mkdir lib
+    > cl.exe /I ".\include" /I "C:\Program Files (x86)\GnuWin32\include" /I "C:\Program Files (x86)\GnuWin32\include\freetype2" /EHsc /Fo.\objs\glow.obj /Fe.\lib\glow.dll /DGLOW_EXPORTS /DUNICODE /LD src\windows\glow.cpp gdi32.lib Opengl32.lib User32.lib freetype.lib /link /LIBPATH:"C:\Program Files (x86)\GnuWin32\lib"
+	
+ - GLOW Tests
+    > mkdir examples\bin
+	> copy /Y lib\glow.dll examples\bin
+	> mkdir examples\apps\interact\objs
+	> mkdir examples\apps\multi\objs
+	> mkdir examples\apps\text\objs
+    > cl.exe /I ".\include" /I "C:\Program Files (x86)\GnuWin32\include" /I "C:\Program Files (x86)\GnuWin32\include\freetype2" /EHsc /Fo.\examples\apps\interact\objs\interact.obj /Fe.\examples\bin\interact.exe /DUNICODE examples\apps\interact\src\main.cpp gdi32.lib Opengl32.lib User32.lib freetype.lib glow.lib /link /LIBPATH:"C:\Program Files (x86)\GnuWin32\lib" /LIBPATH:".\lib"
+	> cl.exe /I ".\include" /I "C:\Program Files (x86)\GnuWin32\include" /I "C:\Program Files (x86)\GnuWin32\include\freetype2" /EHsc /Fo.\examples\apps\multi\objs\multi.obj /Fe.\examples\bin\multi.exe /DUNICODE examples\apps\multi\src\main.cpp gdi32.lib Opengl32.lib User32.lib freetype.lib glow.lib /link /LIBPATH:"C:\Program Files (x86)\GnuWin32\lib" /LIBPATH:".\lib"
+	> cl.exe /I ".\include" /I "C:\Program Files (x86)\GnuWin32\include" /I "C:\Program Files (x86)\GnuWin32\include\freetype2" /EHsc /Fo.\examples\apps\text\objs\text.obj /Fe.\examples\bin\text.exe /DUNICODE examples\apps\text\src\main.cpp gdi32.lib Opengl32.lib User32.lib freetype.lib glow.lib /link /LIBPATH:"C:\Program Files (x86)\GnuWin32\lib" /LIBPATH:".\lib"

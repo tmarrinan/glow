@@ -36,6 +36,9 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 }
 
 int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype) {	
+	if (windowList.size() >= GLOW_MAX_WINDOWS)
+		return -1;
+	
 	wchar_t *glClass = L"GLClass";
 	std::wstring wtitle = std::wstring(title.begin(), title.end());
 	HINSTANCE hinst = GetModuleHandle(NULL);
@@ -68,6 +71,9 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	fullscreen.push_back(false);
 	requiresRender.push_back(false);
 	isIdle.push_back(false);
+	winIsOpen.push_back(false);
+	startTime.push_back(0);
+	prevTime.push_back(0);
 	
 	HWND mainwindow;
 	if (borderless)
@@ -79,7 +85,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	HDC display = GetDC(mainwindow);
 	if (display == NULL) {
 		fprintf(stderr, "ERROR getting window device context\n");
-		exit(1);
+		return -1;
 	}
 
 	int indexPixelFormat = 0;
@@ -109,11 +115,11 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	HGLRC glContext = wglCreateContext(display);
 	if (glContext == NULL) {
 		fprintf(stderr, "ERROR creating OpenGL rendering context\n");
-		exit(1);
+		return -1;
 	}
 	if (wglMakeCurrent(display, glContext) == 0) {
 		fprintf(stderr, "ERROR making OpenGL rendering context current\n");
-		exit(1);
+		return -1;
 	}
 
 	if (glProfile == GLOW_OPENGL_CORE) {
@@ -123,12 +129,12 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 
 		if (wglGetExtensionsStringARB == NULL) {
 			fprintf(stderr, "ERROR OpenGL 3.0+ not supported on this system\n");
-			exit(1);
+			return -1;
 		}
 		std::string ext = wglGetExtensionsStringARB(display);
 		if (ext.find("WGL_ARB_create_context") == std::string::npos) {
 			fprintf(stderr, "ERROR OpenGL 3.0+ not supported on this system\n");
-			exit(1);
+			return -1;
 		}
 
 		wglMakeCurrent(display, NULL);
@@ -159,11 +165,11 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 		glContext = wglCreateContextAttribsARB(display, 0, iContextAttribs);
 		if (glContext == NULL) {
 			fprintf(stderr, "ERROR creating OpenGL rendering context\n");
-			exit(1);
+			return -1;
 		}
 		if (wglMakeCurrent(display, glContext) == 0) {
 			fprintf(stderr, "ERROR making OpenGL rendering context current\n");
-			exit(1);
+			return -1;
 		}
 	}
 
@@ -173,9 +179,6 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	displayList.push_back(display);
 	windowList.push_back(mainwindow);
 	glCtxList.push_back(glContext);
-	
-	startTime.push_back(0);
-	prevTime.push_back(0);
 
 	renderCallback.push_back(NULL);
 	idleCallback.push_back(NULL);
@@ -221,10 +224,16 @@ void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigne
 
 unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
 	int tId = timerId;
+	
+	int i;
+	for(i=0; i<winIsOpen.size(); i++) {
+		if (winIsOpen[i]) break;
+	}
 
 	timeoutCallbacks[tId] = callback;
 	timeoutData[tId] = data;
-	SetTimer(windowList[0], tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
+	//SetTimer(windowList[i], tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
+	SetTimer(NULL, tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
 
 	timerId = (timerId + 1) % GLOW_MAX_TIMERS;
 	return tId;
@@ -235,9 +244,19 @@ void glow::cancelTimeout(unsigned int timeoutId) {
 }
 
 VOID CALLBACK glow::timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
-	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	KillTimer(hwnd, idTimer);
-	PostMessage(hwnd, WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);
+	//glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	//KillTimer(hwnd, idTimer);
+	//PostMessage(hwnd, WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);
+	
+	/*glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	int i;
+	for(i=0; i<self->winIsOpen.size(); i++) {
+		if (self->winIsOpen[i]) break;
+	}
+	KillTimer(NULL, idTimer);
+	PostMessage(self->windowList[i], WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);*/
+	KillTimer(NULL, idTimer);
+	printf("timer fired (%u)\n", (unsigned int)hwnd);
 }
 
 void glow::mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data) {
@@ -274,8 +293,12 @@ void glow::swapBuffers(int winId) {
 	SwapBuffers(displayList[winId]);
 }
 
-void glow::requestRenderFrame(int winId) {
-	requiresRender[winId] = true;
+bool glow::requestRenderFrame(int winId) {
+	if (winIsOpen[winId]) {
+		requiresRender[winId] = true;
+		return true;
+	}
+	return false;
 }
 
 void glow::enableFullscreen(int winId) {
@@ -322,14 +345,7 @@ void glow::runLoop() {
 	while (GetMessage(&message, NULL, 0, 0) > 0) {
 		do {
 			if (message.message == WM_QUIT) {
-				if (windowCount == 1)
-					running = false;
-				//isIdle[winId] = false;
-				//requiresRender[winId] = false;
-				//glXDestroyContext(display, glCtxList[winId]);
-				//XDestroyWindow(display, windowList[winId]);
-				printf("quit\n");
-				windowCount--;
+				running = false;
 				break;
 			}
 			TranslateMessage(&message);
@@ -361,7 +377,7 @@ VOID CALLBACK glow::idleTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD 
 
 LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-
+	
 	unsigned short key;
 	short rw, rh, scroll;
 	
@@ -382,15 +398,19 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			self->startTime[self->windowCount] = GetTickCount64();
 			self->prevTime[self->windowCount] = self->startTime[self->windowCount];
 			self->isIdle[self->windowCount] = true;
+			self->winIsOpen[self->windowCount] = true;
 			self->windowCount++;
 			break;
 		case WM_CLOSE:
-			printf("close\n");
-			DestroyWindow(hwnd);
+			wglDeleteContext(self->glCtxList[winId]);
+			DestroyWindow(self->windowList[winId]);
 			break;
 		case WM_DESTROY:
-			printf("destroy\n");
-			PostQuitMessage(0);
+			if (self->windowCount == 1)
+				PostQuitMessage(0);
+			self->glCtxList[winId] = NULL;
+			self->windowList[winId] = NULL;
+			self->windowCount--;
 			break;
 		case WM_QUERYENDSESSION:
 			printf("user ending session\n");
@@ -481,8 +501,10 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 BOOL glow::ctrlHandler(DWORD fdwCtrlType) {
 	switch (fdwCtrlType) {
 		case CTRL_C_EVENT:
+			PostQuitMessage(0);
 			return TRUE;
 		case CTRL_CLOSE_EVENT:
+			PostQuitMessage(0);
 			return TRUE;
 		default:
 			return FALSE;

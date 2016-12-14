@@ -17,7 +17,7 @@ int main (int argc, char **argv) {
 	gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
 	int win1 = gl->createWindow("Window #1", 600,  24, 1024, 768, GLOW_WINDOW_BASE);
 	int win2 = gl->createWindow("Window #2",   0,  24,  600, 400, GLOW_WINDOW_BASE);
-
+	
 	gl->renderFunction(win1, display1, NULL);
 	gl->resizeFunction(win1, resize, NULL);
 
@@ -25,7 +25,7 @@ int main (int argc, char **argv) {
 	gl->resizeFunction(win2, resize, NULL);
 
 	gl->setTimeout(animate, 100, &win1);
-	gl->setTimeout(animate, 100, &win2);
+	gl->setTimeout(animate, 10000, &win2);
 	
 	string version, shadingVersion;
 	gl->getGLVersions(&version, &shadingVersion);
