@@ -420,7 +420,27 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 }
 
 void glow::getGLVersions(std::string *glv, std::string *glslv) {
-	std::string version = (const char *)glGetString(GL_VERSION);
+	std::string *v[2] = {glv, glslv};
+	GLenum type[2] = { GL_VERSION, GL_SHADING_LANGUAGE_VERSION };
+
+    unsigned int i, j;
+	for (i = 0; i < 2; i++) {
+		std::string version = (const char*)glGetString(type[i]);
+		int end = 0;
+		int dot = 0;
+		for (j=0; j<version.length(); j++){
+			if (version[j] == '.') {
+				dot++;
+				if (dot == 1) continue;
+			}
+			if (version[j] < 48 || version[j] > 57) {
+				end = j;
+				break;
+			}
+		}
+		*(v[i]) = version.substr(0, end);
+	}
+	/*std::string version = (const char *)glGetString(GL_VERSION);
 
     int i;
     int end = 0;
@@ -438,4 +458,5 @@ void glow::getGLVersions(std::string *glv, std::string *glslv) {
 
     *glv = version.substr(0, end);
     *glslv = (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
+	*/
 }

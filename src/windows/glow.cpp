@@ -6,34 +6,34 @@ PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = NULL;
 PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = NULL;
 
 // GLOW C++ Interface
-void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype) {
+void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags) {
 	glProfile = profile;
 	glCoreVMajor = vmajor;
 	glCoreVMinor = vminor;
-	hiDPISupport = windowtype & GLOW_HIDPI_WINDOW;
-	borderless = windowtype & GLOW_BORDERLESS_WINDOW;
 
 	mouseX = 0;
 	mouseY = 0;
 
 	timerId = 0;
-
-	isIdle = false;
-	requiresRender = false;
-
-	idleTimerId = 1;
+	
+	idleTimerId = GLOW_MAX_TIMERS + 1;
+	inactiveTimerId = GLOW_MAX_TIMERS + GLOW_MAX_WINDOWS + 1;
+	
 	IDLE_MESSAGE = 1;
-	TIMER_MESSAGE = 2;
-
-	renderCallback = NULL;
-	idleCallback = NULL;
-	resizeCallback = NULL;
-	keyDownCallback = NULL;
-	keyUpCallback = NULL;
-	mouseDownCallback = NULL;
-	mouseUpCallback = NULL;
-	mouseMoveCallback = NULL;
-	scrollWheelCallback = NULL;
+	INACTIVE_MESSAGE = 2;
+	TIMER_MESSAGE = 3;
+	
+	hideDock = flags & GLOW_FLAGS_HIDE_DOCK;
+	if (hideDock) {
+		HWND taskBarWnd = FindWindow(L"Shell_TrayWnd", NULL);
+		ShowWindow(taskBarWnd, SW_HIDE);
+	}
+	
+	windowCount = 0;
+	
+	if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)ctrlHandler, TRUE)) {
+		fprintf(stderr, "Warning: could not set console control handler\n");
+	}
 
 	// initialize freetype text rendering
 	if(FT_Init_FreeType(&ft)) fprintf(stderr, "Error: could not init freetype library\n");
@@ -43,11 +43,15 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	offsetsFromUTF8[3] = 0x03C82080UL;
 }
 
-void glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height) {	
+int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype) {	
 	wchar_t *glClass = L"GLClass";
 	std::wstring wtitle = std::wstring(title.begin(), title.end());
 	HINSTANCE hinst = GetModuleHandle(NULL);
 
+	int wid = windowList.size();
+	bool hiDPISupport = windowtype & GLOW_WINDOW_HIDPI;
+	bool borderless = windowtype & GLOW_WINDOW_BORDERLESS;
+	
 	WNDCLASSEX ex;
 	ex.cbSize = sizeof(WNDCLASSEX);
 	ex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -65,16 +69,22 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 
 	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
-
-	fullscreen = false;
-
+	prevX.push_back(x);
+	prevY.push_back(y);
+	prevW.push_back(width);
+	prevH.push_back(height);
+	fullscreen.push_back(false);
+	requiresRender.push_back(false);
+	isIdle.push_back(false);
+	
+	HWND mainwindow;
 	if (borderless)
-		window = CreateWindowEx(WS_EX_APPWINDOW, glClass, wtitle.c_str(), WS_POPUP, x, y, width, height, NULL, NULL, hinst, this);
+		mainwindow = CreateWindowEx(WS_EX_APPWINDOW, glClass, wtitle.c_str(), WS_POPUP, x, y, width, height, NULL, NULL, hinst, this);
 	else
-		window = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
+		mainwindow = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
 
 
-	display = GetDC(window);
+	HDC display = GetDC(mainwindow);
 	if (display == NULL) {
 		fprintf(stderr, "ERROR getting window device context\n");
 		exit(1);
@@ -104,12 +114,12 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 	indexPixelFormat = ChoosePixelFormat(display, &pfd);
 	SetPixelFormat(display, indexPixelFormat, &pfd);
 
-	ctx = wglCreateContext(display);
-	if (ctx == NULL) {
+	HGLRC glContext = wglCreateContext(display);
+	if (glContext == NULL) {
 		fprintf(stderr, "ERROR creating OpenGL rendering context\n");
 		exit(1);
 	}
-	if (wglMakeCurrent(display, ctx) == 0) {
+	if (wglMakeCurrent(display, glContext) == 0) {
 		fprintf(stderr, "ERROR making OpenGL rendering context current\n");
 		exit(1);
 	}
@@ -130,7 +140,7 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		}
 
 		wglMakeCurrent(display, NULL);
-		wglDeleteContext(ctx);
+		wglDeleteContext(glContext);
 
 		const int iPixelFormatAttribList[] = {
 			WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
@@ -154,45 +164,82 @@ void glow::createWindow(std::string title, int x, int y, unsigned int width, uns
 		printf("index pixel format: %d (%u)\n", indexPixelFormat, numPixelFormats);
 		SetPixelFormat(display, indexPixelFormat, &pfd);
 
-		ctx = wglCreateContextAttribsARB(display, 0, iContextAttribs);
-		if (ctx == NULL) {
+		glContext = wglCreateContextAttribsARB(display, 0, iContextAttribs);
+		if (glContext == NULL) {
 			fprintf(stderr, "ERROR creating OpenGL rendering context\n");
 			exit(1);
 		}
-		if (wglMakeCurrent(display, ctx) == 0) {
+		if (wglMakeCurrent(display, glContext) == 0) {
 			fprintf(stderr, "ERROR making OpenGL rendering context current\n");
 			exit(1);
 		}
 	}
 
-	ShowWindow(window, SW_SHOW);
-	UpdateWindow(window);
+	ShowWindow(mainwindow, SW_SHOW);
+	UpdateWindow(mainwindow);
+	
+	displayList.push_back(display);
+	windowList.push_back(mainwindow);
+	glCtxList.push_back(glContext);
+	
+	startTime.push_back(0);
+	prevTime.push_back(0);
+
+	renderCallback.push_back(NULL);
+	idleCallback.push_back(NULL);
+	resizeCallback.push_back(NULL);
+	mouseDownCallback.push_back(NULL);
+	mouseUpCallback.push_back(NULL);
+	mouseMoveCallback.push_back(NULL);
+	scrollWheelCallback.push_back(NULL);
+	keyDownCallback.push_back(NULL);
+	keyUpCallback.push_back(NULL);
+
+	renderData.push_back(NULL);
+	idleData.push_back(NULL);
+	resizeData.push_back(NULL);
+	mouseDownData.push_back(NULL);
+	mouseUpData.push_back(NULL);
+	mouseMoveData.push_back(NULL);
+	scrollWheelData.push_back(NULL);
+	keyDownData.push_back(NULL);
+	keyUpData.push_back(NULL);
+	
+	return wid;
 }
 
-void glow::renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl)) {
-	renderCallback = callback;
+void glow::setActiveWindow(int winId) {
+	wglMakeCurrent(displayList[winId], glCtxList[winId]);
 }
 
-void glow::idleFunction(void (*callback)(glow *gl)) {
-	idleCallback = callback;
+void glow::renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data) {
+	renderCallback[winId] = callback;
+	renderData[winId] = data;
 }
 
-void glow::resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl)) {
-	resizeCallback = callback;
+void glow::idleFunction(int winId, void (*callback)(glow *gl, int wid, void *data), void *data) {
+	idleCallback[winId] = callback;
+	idleData[winId] = data;
 }
 
-unsigned int glow::setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait) {
+void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data), void *data) {
+	resizeCallback[winId] = callback;
+	resizeData[winId] = data;
+}
+
+unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
 	int tId = timerId;
 
 	timeoutCallbacks[tId] = callback;
-	SetTimer(window, tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
+	timeoutData[tId] = data;
+	SetTimer(windowList[0], tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
 
 	timerId = (timerId + 1) % GLOW_MAX_TIMERS;
 	return tId;
 }
 
 void glow::cancelTimeout(unsigned int timeoutId) {
-	KillTimer(window, timeoutId+IDT_TIMER1);
+	KillTimer(windowList[0], timeoutId+IDT_TIMER1);
 }
 
 VOID CALLBACK glow::timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
@@ -201,82 +248,96 @@ VOID CALLBACK glow::timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWO
 	PostMessage(hwnd, WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);
 }
 
-void glow::mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
-	mouseDownCallback = callback;
+void glow::mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data) {
+	mouseDownCallback[winId] = callback;
+	mouseDownData[winId] = data;
 }
 
-void glow::mouseUpListener(void (*callback)(unsigned short button, int x, int y, glow *gl)) {
-	mouseUpCallback = callback;
+void glow::mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data) {
+	mouseUpCallback[winId] = callback;
+	mouseDownData[winId] = data;
 }
 
-void glow::mouseMoveListener(void (*callback)(int x, int y, glow *gl)) {
-	mouseMoveCallback = callback;
+void glow::mouseMoveListener(int winId, void (*callback)(glow *gl, int wid, int x, int y, void *data), void *data) {
+	mouseMoveCallback[winId] = callback;
+	mouseMoveData[winId] = data;
 }
 
-void glow::scrollWheelListener(void (*callback)(int dx, int dy, int x, int y, glow *gl)) {
-	scrollWheelCallback = callback;
+void glow::scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data), void *data) {
+	scrollWheelCallback[winId] = callback;
+	scrollWheelData[winId] = data;
 }
 
-void glow::keyDownListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
-	keyDownCallback = callback;
+void glow::keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+	keyDownCallback[winId] = callback;
+	keyDownData[winId] = data;
 }
 
-void glow::keyUpListener(void (*callback)(unsigned short key, int x, int y, glow *gl)) {
-	keyUpCallback = callback;
+void glow::keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+	keyUpCallback[winId] = callback;
+	keyUpData[winId] = data;
 }
 
-void glow::swapBuffers() {
-	SwapBuffers(display);
+void glow::swapBuffers(int winId) {
+	SwapBuffers(displayList[winId]);
 }
 
-void glow::requestRenderFrame() {
-	requiresRender = true;
+void glow::requestRenderFrame(int winId) {
+	requiresRender[winId] = true;
 }
 
-void glow::enableFullscreen() {
-	if (fullscreen) return;
+void glow::enableFullscreen(int winId) {
+	if (fullscreen[winId]) return;
 
-	fullscreen = true;
+	fullscreen[winId] = true;
 	RECT rect;
-	GetWindowRect(window, &rect);
-	prevX = rect.left;
-	prevY = rect.top;
-	prevW = rect.right - prevX;
-	prevH = rect.bottom - prevY;
-	SetWindowLongPtr(window, GWL_STYLE, WS_POPUP | WS_VISIBLE);
-	SetWindowPos(window, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
+	GetWindowRect(windowList[winId], &rect);
+	prevX[winId] = rect.left;
+	prevY[winId] = rect.top;
+	prevW[winId] = rect.right - prevX[winId];
+	prevH[winId] = rect.bottom - prevY[winId];
+	SetWindowLongPtr(windowList[winId], GWL_STYLE, WS_POPUP | WS_VISIBLE);
+	SetWindowPos(windowList[winId], HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
 }
 
-void glow::disableFullscreen() {
-	if (!fullscreen) return;
+void glow::disableFullscreen(int winId) {
+	if (!fullscreen[winId]) return;
 
-	fullscreen = false;
-	SetWindowLongPtr(window, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
-	SetWindowPos(window, HWND_TOP, prevX, prevY, prevW, prevH, SWP_SHOWWINDOW);
+	fullscreen[winId] = false;
+	SetWindowLongPtr(windowList[winId], GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+	SetWindowPos(windowList[winId], HWND_TOP, prevX[winId], prevY[winId], prevW[winId], prevH[winId], SWP_SHOWWINDOW);
 }
 
-void glow::setWindowGeometry(int x, int y, unsigned int width, unsigned int height) {
-	fullscreen = false;
+void glow::setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height) {
+	fullscreen[winId] = false;
 	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
 	
-	SetWindowLongPtr(window, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
-	SetWindowPos(window, HWND_TOP, x, y, width, height, SWP_SHOWWINDOW);
+	SetWindowLongPtr(windowList[winId], GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+	SetWindowPos(windowList[winId], HWND_TOP, x, y, width, height, SWP_SHOWWINDOW);
 }
 
-void glow::setWindowTitle(std::string title) {
+void glow::setWindowTitle(int winId, std::string title) {
 	std::wstring wtitle = std::wstring(title.begin(), title.end());
-	SetWindowText(window, wtitle.c_str());
+	SetWindowText(windowList[winId], wtitle.c_str());
 }
 
 void glow::runLoop() {
-		MSG message;
+	MSG message;
+	int i;
 	bool running = true;
 
 	while (GetMessage(&message, NULL, 0, 0) > 0) {
 		do {
 			if (message.message == WM_QUIT) {
-				running = false;
+				if (windowCount == 1)
+					running = false;
+				//isIdle[winId] = false;
+				//requiresRender[winId] = false;
+				//glXDestroyContext(display, glCtxList[winId]);
+				//XDestroyWindow(display, windowList[winId]);
+				printf("quit\n");
+				windowCount--;
 				break;
 			}
 			TranslateMessage(&message);
@@ -285,15 +346,18 @@ void glow::runLoop() {
 
 		if (!running) break;
 
-		if (isIdle && idleCallback) {
-			isIdle = false;
-			SetTimer(window, idleTimerId, USER_TIMER_MINIMUM, (TIMERPROC)idleTimerFired);
-		}
-		if (requiresRender && renderCallback) {
-			ULONGLONG now = GetTickCount64();
-			renderCallback((unsigned long)(now - startTime), (unsigned int)(now - prevTime), this);
-			prevTime = now;
-			requiresRender = false;
+		for (i=0; i<windowList.size(); i++) {
+			if (isIdle[i] && idleCallback[i]) {
+				isIdle[i] = false;
+				SetTimer(windowList[i], idleTimerId+IDT_TIMER1, USER_TIMER_MINIMUM, (TIMERPROC)idleTimerFired);
+			}
+			if (requiresRender[i] && renderCallback[i]) {
+				ULONGLONG now = GetTickCount64();
+				wglMakeCurrent(displayList[i], glCtxList[i]);
+				renderCallback[i](this, i, (unsigned long)(now - startTime[i]), (unsigned int)(now - prevTime[i]), renderData[i]);
+				prevTime[i] = now;
+				requiresRender[i] = false;
+			}
 		}
 	}
 }
@@ -303,109 +367,159 @@ VOID CALLBACK glow::idleTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD 
 	PostMessage(hwnd, WM_USER, self->IDLE_MESSAGE, 0);
 }
 
+VOID CALLBACK glow::inactiveTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
+	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	KillTimer(hwnd, idTimer);
+	PostMessage(hwnd, WM_USER, self->INACTIVE_MESSAGE, 0);
+}
+
 LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
 	unsigned short key;
 	short rw, rh, scroll;
+	
+	int i;
+	int winId = -1;
+	if (msg != WM_CREATE && self != NULL) {
+		for (i=0; i<self->windowList.size(); i++) {
+			if (hwnd == self->windowList[i]) winId = i;
+		}	
+		if (winId < 0) return 0;
+	}
 
 	switch (msg) {
 		case WM_CREATE:
 			self = (glow*)(((CREATESTRUCT*)lParam)->lpCreateParams);
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (long)self);
-			self->requiresRender = true;
-			self->startTime = GetTickCount64();
-			self->prevTime = self->startTime;
-			self->isIdle = true;
+			self->requiresRender[self->windowCount] = true;
+			self->startTime[self->windowCount] = GetTickCount64();
+			self->prevTime[self->windowCount] = self->startTime[self->windowCount];
+			self->isIdle[self->windowCount] = true;
+			self->windowCount++;
 			break;
 		case WM_CLOSE:
+			printf("close\n");
 			DestroyWindow(hwnd);
 			break;
 		case WM_DESTROY:
+			printf("destroy\n");
 			PostQuitMessage(0);
+			break;
+		case WM_ACTIVATE:
+			if (self->hideDock) { 
+				HWND taskBarWnd = FindWindow(L"Shell_TrayWnd", NULL);
+				if (wParam == WA_INACTIVE) {
+					SetTimer(self->windowList[winId], self->inactiveTimerId, USER_TIMER_MINIMUM, (TIMERPROC)inactiveTimerFired);
+				}
+				else {
+					ShowWindow(taskBarWnd, SW_HIDE);
+				}
+			}
+			break;
+		case WM_QUERYENDSESSION:
+			printf("user ending session\n");
 			break;
 		case WM_SIZE:
 			rw = (short)LOWORD(lParam);
 			rh = (short)HIWORD(lParam);
-			if (!self->resizeCallback) break;
+			if (!self->resizeCallback[winId]) break;
 
-			self->resizeCallback(rw, rh, rw, rh, self);
+			self->resizeCallback[winId](self, winId, rw, rh, rw, rh, self->resizeData[winId]);
 			break;
 		case WM_MOVE:
 			break;
 		case WM_KEYDOWN:
 		case WM_SYSKEYDOWN:
-			if (!self->keyDownCallback && !self->keyUpCallback) break;
+			if (!self->keyDownCallback[winId] && !self->keyUpCallback[winId]) break;
 
 			key = translateKey(wParam, lParam);
 			if (key == GLOW_KEY_CAPS_LOCK && !(GetKeyState(VK_CAPITAL) & 0x0001)) {
-				if (self->keyUpCallback) self->keyUpCallback(key, self->mouseX, self->mouseY, self);
+				if (self->keyUpCallback[winId]) self->keyUpCallback[winId](self, winId, key, self->mouseX, self->mouseY, self->keyUpData[winId]);
 			}
 			else {
-				if (self->keyDownCallback) self->keyDownCallback(key, self->mouseX, self->mouseY, self);
+				if (self->keyDownCallback[winId]) self->keyDownCallback[winId](self, winId, key, self->mouseX, self->mouseY, self->keyDownData[winId]);
 			}
 			break;
 		case WM_KEYUP:
 		case WM_SYSKEYUP:
-			if (!self->keyUpCallback) break;
+			if (!self->keyUpCallback[winId]) break;
 
 			key = translateKey(wParam, lParam);
 			if (key != GLOW_KEY_CAPS_LOCK)
-				self->keyUpCallback(key, self->mouseX, self->mouseY, self);
+				self->keyUpCallback[winId](self, winId, key, self->mouseX, self->mouseY, self->keyUpData[winId]);
 			break;
 		case WM_LBUTTONDOWN:
-			if (!self->mouseDownCallback) break;
+			if (!self->mouseDownCallback[winId]) break;
 
-			self->mouseDownCallback(GLOW_MOUSE_BUTTON_LEFT, self->mouseX, self->mouseY, self);
+			self->mouseDownCallback[winId](self, winId, GLOW_MOUSE_BUTTON_LEFT, self->mouseX, self->mouseY, self->mouseDownData[winId]);
 			break;
 		case WM_RBUTTONDOWN:
-			if (!self->mouseDownCallback) break;
+			if (!self->mouseDownCallback[winId]) break;
 
-			self->mouseDownCallback(GLOW_MOUSE_BUTTON_RIGHT, self->mouseX, self->mouseY, self);
+			self->mouseDownCallback[winId](self, winId, GLOW_MOUSE_BUTTON_RIGHT, self->mouseX, self->mouseY, self->mouseDownData[winId]);
 			break;
 		case WM_LBUTTONUP:
-			if (!self->mouseUpCallback) break;
+			if (!self->mouseUpCallback[winId]) break;
 
-			self->mouseUpCallback(GLOW_MOUSE_BUTTON_LEFT, self->mouseX, self->mouseY, self);
+			self->mouseUpCallback[winId](self, winId, GLOW_MOUSE_BUTTON_LEFT, self->mouseX, self->mouseY, self->mouseUpData[winId]);
 			break;
 		case WM_RBUTTONUP:
-			if (!self->mouseUpCallback) break;
+			if (!self->mouseUpCallback[winId]) break;
 
-			self->mouseUpCallback(GLOW_MOUSE_BUTTON_RIGHT, self->mouseX, self->mouseY, self);
+			self->mouseUpCallback[winId](self, winId, GLOW_MOUSE_BUTTON_RIGHT, self->mouseX, self->mouseY, self->mouseUpData[winId]);
 			break;
 		case WM_MOUSEWHEEL:
-			if (!self->scrollWheelCallback) break;
+			if (!self->scrollWheelCallback[winId]) break;
 
 			scroll = (short)HIWORD(wParam);
-			self->scrollWheelCallback(0, scroll, self->mouseX, self->mouseY, self);
+			self->scrollWheelCallback[winId](self, winId, 0, scroll, self->mouseX, self->mouseY, self->scrollWheelData[winId]);
 			break;
 		case WM_MOUSEHWHEEL:
-			if (!self->scrollWheelCallback) break;
+			if (!self->scrollWheelCallback[winId]) break;
 
 			scroll = (short)HIWORD(wParam);
-			self->scrollWheelCallback(scroll, 0, self->mouseX, self->mouseY, self);
+			self->scrollWheelCallback[winId](self, winId, scroll, 0, self->mouseX, self->mouseY, self->scrollWheelData[winId]);
 			break;
 		case WM_MOUSEMOVE:
 			self->mouseX = (short)LOWORD(lParam);
 			self->mouseY = (short)HIWORD(lParam);
 
-			if (!self->mouseMoveCallback) break;
+			if (!self->mouseMoveCallback[winId]) break;
 
-			self->mouseMoveCallback(self->mouseX, self->mouseY, self);
+			self->mouseMoveCallback[winId](self, winId, self->mouseX, self->mouseY, self->mouseMoveData[winId]);
 			break;
 		case WM_USER:
 			if (wParam == self->IDLE_MESSAGE) {
-				self->idleCallback(self);
-				self->isIdle = true;
+				self->idleCallback[winId](self, winId, self->idleData[winId]);
+				self->isIdle[winId] = true;
+			}
+			else if(wParam == self->INACTIVE_MESSAGE) {
+				HWND taskBarWnd = FindWindow(L"Shell_TrayWnd", NULL);
+				HWND activeWnd = GetActiveWindow();
+				if (std::find(self->windowList.begin(), self->windowList.end(), activeWnd) == self->windowList.end())
+					ShowWindow(taskBarWnd, SW_SHOW);
 			}
 			else if (wParam == self->TIMER_MESSAGE) {
-				self->timeoutCallbacks[lParam](lParam, self);
+				self->timeoutCallbacks[lParam](self, lParam, self->timeoutData[lParam]);
 			}
 		default:
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 	return 0;
 }
+
+BOOL glow::ctrlHandler(DWORD fdwCtrlType) {
+	switch (fdwCtrlType) {
+		case CTRL_C_EVENT:
+			return TRUE;
+		case CTRL_CLOSE_EVENT:
+			return TRUE;
+		default:
+			return FALSE;
+	}
+}
+
 unsigned short glow::translateKey(WPARAM vk, LPARAM lParam) {
 	unsigned short key;
 	bool capslock;
@@ -697,8 +811,11 @@ void glow::convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* 
 	*target = ch;
 }
 
-void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs) {
-	unsigned int i = 0;
+void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, unsigned int *baseline, std::vector<GLOW_CharGlyph> *glyphs) {
+	int i = 0;
+	int top = 0;
+	int bottom = 0;
+
 	*width = 0;
 	unsigned char *unicode = (unsigned char*)text.c_str();
 	do {
@@ -739,20 +856,26 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 		(*glyphs)[c].advanceX = face->face->glyph->advance.x;
 
 		*width += (*glyphs)[c].advanceX / 64;
+		if ((*glyphs)[c].top > top) {
+			top = (*glyphs)[c].top;
+			*baseline = top;
+		}
+		if (((int)((*glyphs)[c].top) - (int)((*glyphs)[c].height)) < bottom) {
+			bottom = (int)((*glyphs)[c].top) - (int)((*glyphs)[c].height);
+		}
 	} while (i < text.length());
 
-	*height = (3 * face->size) / 2;
+	*height = top - bottom;
 }
 
-void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
-	unsigned int i, j, k;
+void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels) {
+	int i, j, k;
 	std::vector<GLOW_CharGlyph> glyphs;
 
-	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
+	getRenderedGlyphsFromString(face, utf8Text, width, height, baseline, &glyphs);
 
 	*width = (*width) + (4 - ((*width) % 4));
 	*height = (*height) + (4 - ((*height) % 4));
-	unsigned int bline = face->size / 2;
 
 	int size = (*width) * (*height);
 	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
@@ -762,11 +885,11 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 	int pt, ix, iy, idx;
 	for (i=0; i<glyphs.size(); i++) {
 		for (j=0; j<glyphs[i].height; j++) {
+			pt = (*baseline) - glyphs[i].top;
+			iy = pt + j;
+			if (flipY) iy = ((*height) - iy);
 			for (k=0; k<glyphs[i].width; k++) {
-				pt = (*height) - (bline + glyphs[i].top);
 				ix = glyphs[i].left + x + k;
-				iy = pt + j;
-				if (flipY) iy = ((*height) - iy);
 				idx = (*width) * iy + ix;
 				if (idx < 0 || idx >= size) continue;
 				(*pixels)[idx] = glyphs[i].pixels[glyphs[i].width * j + k];
@@ -777,15 +900,15 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 	}
 }
 
-void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels) {
-	unsigned int i, j, k;
+void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels) {
+	int i, j, k;
 	std::vector<GLOW_CharGlyph> glyphs;
 
-	getRenderedGlyphsFromString(face, utf8Text, width, height, &glyphs);
+	getRenderedGlyphsFromString(face, utf8Text, width, height, baseline, &glyphs);
 
 	*width = (*width) + (4 - ((*width) % 4));
 	*height = (*height) + (4 - ((*height) % 4));
-	unsigned int bline = face->size / 2;
+	unsigned int bline = *baseline;
 
 	int size = (*width) * (*height) * 4;
 	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
@@ -795,11 +918,11 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 	int pt, ix, iy, idx;
 	for (i=0; i<glyphs.size(); i++) {
 		for (j=0; j<glyphs[i].height; j++) {
+			pt = (*baseline) - glyphs[i].top;
+			iy = pt + j;
+			if (flipY) iy = ((*height) - iy);
 			for (k=0; k<glyphs[i].width; k++) {
-				pt = (*height) - (bline + glyphs[i].top);
 				ix = glyphs[i].left + x + k;
-				iy = pt + j;
-				if (flipY) iy = ((*height) - iy);
 				idx = (4 * (*width) * iy) + (4 * ix);
 				if (idx < 0 || idx >= size) continue;
 				(*pixels)[idx + 0] = color[0];

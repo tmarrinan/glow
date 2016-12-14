@@ -383,8 +383,8 @@ void glow::runLoop() {
 	Atom wmProtocols = XInternAtom(display, "WM_PROTOCOLS", False);
 	Atom wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False);
 
-	long startTime;
-    long prevTime;
+	long startTime; /*TODO: update per window*/
+    long prevTime;  /*TODO: update per window*/
 	struct timeval tp;
 	
 	int i;
@@ -538,7 +538,8 @@ void glow::runLoop() {
 					break;
 				case ClientMessage:
 					if (event.xclient.message_type == wmProtocols && event.xclient.data.l[0] == wmDeleteMessage) {
-						if (windowCount == 1) running = false;
+						if (windowCount == 1)
+							running = false;
 						isIdle[winId] = false;
 						requiresRender[winId] = false;
 						glXDestroyContext(display, glCtxList[winId]);
@@ -835,23 +836,25 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 }
 
 void glow::getGLVersions(std::string *glv, std::string *glslv) {
-	std::string version = (const char *)glGetString(GL_VERSION);
+	std::string *v[2] = {glv, glslv};
+	GLenum type[2] = { GL_VERSION, GL_SHADING_LANGUAGE_VERSION };
 
-    int i;
-    int end = 0;
-    int dot = 0;
-    for (i=0; i<version.length(); i++){
-        if (version[i] == '.') {
-            dot++;
-            if (dot == 1) continue;
-        }
-        if (version[i] < 48 || version[i] > 57) {
-            end = i;
-            break;
-        }
-    }
-
-    *glv = version.substr(0, end);
-    *glslv = (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
+    unsigned int i, j;
+	for (i = 0; i < 2; i++) {
+		std::string version = (const char*)glGetString(type[i]);
+		int end = 0;
+		int dot = 0;
+		for (j=0; j<version.length(); j++){
+			if (version[j] == '.') {
+				dot++;
+				if (dot == 1) continue;
+			}
+			if (version[j] < 48 || version[j] > 57) {
+				end = j;
+				break;
+			}
+		}
+		*(v[i]) = version.substr(0, end);
+	}
 }
 

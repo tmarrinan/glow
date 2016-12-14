@@ -1,6 +1,12 @@
 #ifndef __GLOW_WINDOWS_H__
 #define __GLOW_WINDOWS_H__
 
+#ifdef GLOW_EXPORTS
+#define GLOW_API __declspec(dllexport)
+#else
+#define GLOW_API __declspec(dllimport)
+#endif
+
 #include <windows.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -21,12 +27,15 @@
 #endif
 
 #define GLOW_MAX_TIMERS 128
+#define GLOW_MAX_WINDOWS 32
 
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_CORE 1
-#define GLOW_BASE_WINDOW 0
-#define GLOW_HIDPI_WINDOW 1
-#define GLOW_BORDERLESS_WINDOW 2
+#define GLOW_FLAGS_NONE 0
+#define GLOW_FLAGS_HIDE_DOCK 1
+#define GLOW_WINDOW_BASE 0
+#define GLOW_WINDOW_HIDPI 1
+#define GLOW_WINDOW_BORDERLESS 2
 #define GLOW_CENTER_HORIZONTAL INT_MAX
 #define GLOW_CENTER_VERTICAL INT_MAX
 
@@ -51,7 +60,7 @@ typedef struct GLOW_CharGlyph {
 	int advanceX;
 } GLOW_CharGlyph;
 
-typedef void(*timer_func)(unsigned int timeoutId, glow *gl);
+typedef void(*timer_func)(glow *gl, unsigned int timeoutId, void *data);
 
 extern PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
 extern PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
@@ -59,43 +68,56 @@ extern PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB;
 
 class glow {
 private:
-	HDC display;
-	HWND window;
-	HGLRC ctx;
+	std::vector<HDC> displayList;
+	std::vector<HWND> windowList;
+	std::vector<HGLRC> glCtxList;
 
 	unsigned int glProfile;
 	unsigned int glCoreVMajor;
 	unsigned int glCoreVMinor;
-	bool hiDPISupport;
-	bool borderless;	
-	bool fullscreen;
-	int prevX;
-	int prevY;
-	int prevW;
-	int prevH;
+	std::vector<int> prevX;
+	std::vector<int> prevY;
+	std::vector<int> prevW;
+	std::vector<int> prevH;
+	std::vector<bool> fullscreen;
 	int mouseX;
     int mouseY;
-	ULONGLONG startTime;
-	ULONGLONG prevTime;
+	std::vector<ULONGLONG> startTime;
+	std::vector<ULONGLONG> prevTime;
+	unsigned int windowCount;
 	unsigned int capsmask;
-	bool isIdle;
-	bool requiresRender;
+	std::vector<bool> requiresRender;
+	std::vector<bool> isIdle;
 	unsigned int timerId;
 	UINT_PTR idleTimerId;
+	UINT_PTR inactiveTimerId;
 	WPARAM IDLE_MESSAGE;
+	WPARAM INACTIVE_MESSAGE;
 	WPARAM TIMER_MESSAGE;
+	bool hideDock;
 	//timer_t timeoutTimers[GLOW_MAX_TIMERS];
 	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];
+	void *timeoutData[GLOW_MAX_TIMERS];
 
-	void (*renderCallback)(unsigned long t, unsigned int dt, glow *gl);
-	void (*idleCallback)(glow *gl);
-	void (*resizeCallback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl);
-	void (*keyDownCallback)(unsigned short key, int x, int y, glow *gl);
-	void (*keyUpCallback)(unsigned short key, int x, int y, glow *gl);
-	void (*mouseDownCallback)(unsigned short button, int x, int y, glow *gl);
-	void (*mouseUpCallback)(unsigned short button, int x, int y, glow *gl);
-	void (*mouseMoveCallback)(int x, int y, glow *gl);
-	void (*scrollWheelCallback)(int dx, int dy, int x, int y, glow *gl);
+	std::vector<void (*)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data)> renderCallback;
+	std::vector<void (*)(glow *gl, int wid, void *data)> idleCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data)> resizeCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned short button, int x, int y, void *data)> mouseDownCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned short button, int x, int y, void *data)> mouseUpCallback;
+	std::vector<void (*)(glow *gl, int wid, int x, int y, void *data)> mouseMoveCallback;
+	std::vector<void (*)(glow *gl, int wid, int dx, int dy, int x, int y, void *data)> scrollWheelCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned short key, int x, int y, void *data)> keyDownCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned short key, int x, int y, void *data)> keyUpCallback;
+
+	std::vector<void*> renderData;
+	std::vector<void*> idleData;
+	std::vector<void*> resizeData;
+	std::vector<void*> mouseDownData;
+	std::vector<void*> mouseUpData;
+	std::vector<void*> mouseMoveData;
+	std::vector<void*> scrollWheelData;
+	std::vector<void*> keyDownData;
+	std::vector<void*> keyUpData;
 
 	FT_Library ft;
 
@@ -103,47 +125,51 @@ private:
 
 	static VOID CALLBACK timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime);
 	static VOID CALLBACK idleTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime);
+	static VOID CALLBACK inactiveTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime);
 	static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	static BOOL ctrlHandler(DWORD fdwCtrlType);
 	static unsigned short translateKey(WPARAM vk, LPARAM lParam);
 	static unsigned short specialKey(WPARAM vk, LPARAM lParam);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
-	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, std::vector<GLOW_CharGlyph> *glyphs);
+	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, unsigned int *baseline, std::vector<GLOW_CharGlyph> *glyphs);
+
 public:
-	glow() {};
-	~glow() {};
+	GLOW_API glow() {};
+	GLOW_API ~glow() {};
 
 	
-	void createWindow(std::string title, int x, int y, unsigned int width, unsigned int height);
-	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int windowtype);
+	GLOW_API void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags);
+	GLOW_API int createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype);
+	GLOW_API void setActiveWindow(int winId);
 
-	void renderFunction(void (*callback)(unsigned long t, unsigned int dt, glow *gl));
-	void idleFunction(void (*callback)(glow *gl));
-	void resizeFunction(void (*callback)(unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, glow *gl));
-	unsigned int setTimeout(void (*callback)(unsigned int timeoutId, glow *gl), unsigned int wait);
-	void cancelTimeout(unsigned int timeoutId);
+	GLOW_API void renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data);
+	GLOW_API void idleFunction(int winId, void (*callback)(glow *gl, int wid, void *data), void *data);
+	GLOW_API void resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data), void *data);
+	GLOW_API unsigned int setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data);
+	GLOW_API void cancelTimeout(unsigned int timeoutId);
 
-	void mouseDownListener(void (*callback)(unsigned short button, int x, int y, glow *gl));
-	void mouseUpListener(void (*callback)(unsigned short button, int x, int y, glow *gl));
-	void mouseMoveListener(void (*callback)(int x, int y, glow *gl));
-	void scrollWheelListener(void (*callback)(int dx, int dy, int x, int y, glow *gl));
-	void keyDownListener(void (*callback)(unsigned short key, int x, int y, glow *gl));
-	void keyUpListener(void (*callback)(unsigned short key, int x, int y, glow *gl));
+	GLOW_API void mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
+	GLOW_API void mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
+	GLOW_API void mouseMoveListener(int winId, void (*callback)(glow *gl, int wid, int x, int y, void *data), void *data);
+	GLOW_API void scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data), void *data);
+	GLOW_API void keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
+	GLOW_API void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
 
-	void swapBuffers();
-	void requestRenderFrame();
-	void enableFullscreen();
-	void disableFullscreen();
-	void setWindowGeometry(int x, int y, unsigned int width, unsigned int height);
-	void setWindowTitle(std::string title);
-	void runLoop();
+	GLOW_API void swapBuffers(int winId);
+	GLOW_API void requestRenderFrame(int winId);
+	GLOW_API void enableFullscreen(int winId);
+	GLOW_API void disableFullscreen(int winId);
+	GLOW_API void setWindowGeometry(int winId, int x, int y, unsigned int width, unsigned int height);
+	GLOW_API void setWindowTitle(int winId, std::string title);
+	GLOW_API void runLoop();
 
-	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
-	void destroyFontFace(GLOW_FontFace **facePtr);
-	void setFontSize(GLOW_FontFace *face, unsigned int size);
-	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels);
-	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned char **pixels);
+	GLOW_API void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
+	GLOW_API void destroyFontFace(GLOW_FontFace **facePtr);
+	GLOW_API void setFontSize(GLOW_FontFace *face, unsigned int size);
+	GLOW_API void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
+	GLOW_API void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
 
-	void getGLVersions(std::string *glv, std::string *glslv);	
+	GLOW_API void getGLVersions(std::string *glv, std::string *glslv);	
 };
 
 #endif // __GLOW_WINDOWS_H__
