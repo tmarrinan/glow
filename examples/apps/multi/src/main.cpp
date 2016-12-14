@@ -14,7 +14,7 @@ int main (int argc, char **argv) {
 	glow *gl = new glow();
 
 	//gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_FLAGS_NONE);
-	gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_HIDE_DOCK);
+	gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
 	int win1 = gl->createWindow("Window #1", 600,  24, 1024, 768, GLOW_WINDOW_BASE);
 	int win2 = gl->createWindow("Window #2",   0,  24,  600, 400, GLOW_WINDOW_BASE);
 

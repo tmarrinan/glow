@@ -17,17 +17,9 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	timerId = 0;
 	
 	idleTimerId = GLOW_MAX_TIMERS + 1;
-	inactiveTimerId = GLOW_MAX_TIMERS + GLOW_MAX_WINDOWS + 1;
 	
 	IDLE_MESSAGE = 1;
-	INACTIVE_MESSAGE = 2;
-	TIMER_MESSAGE = 3;
-	
-	hideDock = flags & GLOW_FLAGS_HIDE_DOCK;
-	if (hideDock) {
-		HWND taskBarWnd = FindWindow(L"Shell_TrayWnd", NULL);
-		ShowWindow(taskBarWnd, SW_HIDE);
-	}
+	TIMER_MESSAGE = 2;
 	
 	windowCount = 0;
 	
@@ -367,12 +359,6 @@ VOID CALLBACK glow::idleTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD 
 	PostMessage(hwnd, WM_USER, self->IDLE_MESSAGE, 0);
 }
 
-VOID CALLBACK glow::inactiveTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
-	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	KillTimer(hwnd, idTimer);
-	PostMessage(hwnd, WM_USER, self->INACTIVE_MESSAGE, 0);
-}
-
 LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
@@ -405,17 +391,6 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_DESTROY:
 			printf("destroy\n");
 			PostQuitMessage(0);
-			break;
-		case WM_ACTIVATE:
-			if (self->hideDock) { 
-				HWND taskBarWnd = FindWindow(L"Shell_TrayWnd", NULL);
-				if (wParam == WA_INACTIVE) {
-					SetTimer(self->windowList[winId], self->inactiveTimerId, USER_TIMER_MINIMUM, (TIMERPROC)inactiveTimerFired);
-				}
-				else {
-					ShowWindow(taskBarWnd, SW_HIDE);
-				}
-			}
 			break;
 		case WM_QUERYENDSESSION:
 			printf("user ending session\n");
@@ -493,12 +468,6 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			if (wParam == self->IDLE_MESSAGE) {
 				self->idleCallback[winId](self, winId, self->idleData[winId]);
 				self->isIdle[winId] = true;
-			}
-			else if(wParam == self->INACTIVE_MESSAGE) {
-				HWND taskBarWnd = FindWindow(L"Shell_TrayWnd", NULL);
-				HWND activeWnd = GetActiveWindow();
-				if (std::find(self->windowList.begin(), self->windowList.end(), activeWnd) == self->windowList.end())
-					ShowWindow(taskBarWnd, SW_SHOW);
 			}
 			else if (wParam == self->TIMER_MESSAGE) {
 				self->timeoutCallbacks[lParam](self, lParam, self->timeoutData[lParam]);

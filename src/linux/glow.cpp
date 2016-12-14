@@ -30,9 +30,6 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 		exit(1);
 	}
 
-	hideDock = flags & GLOW_FLAGS_HIDE_DOCK;
-	/*TODO: implement dock hiding*/
-
 	stateMessage = XInternAtom(display, "_NET_WM_STATE", False);
 	fullscreenMessage = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
 	timeoutMessage = XInternAtom(display, "TIMEOUT", False);

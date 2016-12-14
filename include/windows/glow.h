@@ -32,7 +32,6 @@
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_CORE 1
 #define GLOW_FLAGS_NONE 0
-#define GLOW_FLAGS_HIDE_DOCK 1
 #define GLOW_WINDOW_BASE 0
 #define GLOW_WINDOW_HIDPI 1
 #define GLOW_WINDOW_BORDERLESS 2
@@ -90,12 +89,8 @@ private:
 	std::vector<bool> isIdle;
 	unsigned int timerId;
 	UINT_PTR idleTimerId;
-	UINT_PTR inactiveTimerId;
 	WPARAM IDLE_MESSAGE;
-	WPARAM INACTIVE_MESSAGE;
 	WPARAM TIMER_MESSAGE;
-	bool hideDock;
-	//timer_t timeoutTimers[GLOW_MAX_TIMERS];
 	timer_func timeoutCallbacks[GLOW_MAX_TIMERS];
 	void *timeoutData[GLOW_MAX_TIMERS];
 

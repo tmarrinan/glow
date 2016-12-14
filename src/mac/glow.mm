@@ -77,8 +77,6 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	}
 	windowRequiresResize = false;
 
-	bool hideDock = flags & GLOW_FLAGS_HIDE_DOCK;
-
 	// setup app menu
 	NSMenu *menu=[[NSMenu alloc] initWithTitle:@"AMainMenu"];
 	NSMenuItem* item;
@@ -96,8 +94,6 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 
 	[NSApp activateIgnoringOtherApps:YES];
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
-	if (hideDock) [NSMenu setMenuBarVisible:NO];
 	
 	// initialize freetype text rendering
 	if(FT_Init_FreeType(&ft)) fprintf(stderr, "Error: could not init freetype library\n");

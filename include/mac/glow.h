@@ -29,7 +29,6 @@ typedef uint32_t nsOpenGLPixelFormatAttribute;
 #define GLOW_OPENGL_LEGACY 0
 #define GLOW_OPENGL_CORE 1
 #define GLOW_FLAGS_NONE 0
-#define GLOW_FLAGS_HIDE_DOCK 1
 #define GLOW_WINDOW_BASE 0
 #define GLOW_WINDOW_HIDPI 1
 #define GLOW_WINDOW_BORDERLESS 2
