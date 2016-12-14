@@ -17,8 +17,8 @@ void onScrollWheel(glow *gl, int wid, int dx, int dy, int x, int y, void *data);
 int main (int argc, char **argv) {
 	glow *gl = new glow();
 
-	//gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_FLAGS_NONE);
-	gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
+	gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_FLAGS_NONE);
+	//gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
 	int win = gl->createWindow("Interaction", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 1024, 768, GLOW_WINDOW_BASE);
 
 	gl->renderFunction(win, display, NULL);

@@ -61,7 +61,11 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	[[NSApplication sharedApplication] setDelegate:glDelegate];
 
 	if (profile == GLOW_OPENGL_CORE) {
-		if ((vmajor == 3 && vminor > 2) || vmajor > 3) {
+		if ((vmajor == 4 && vminor > 1) || vmajor > 4) {
+			fprintf(stderr, "Error: OpenGL version %d.%d not supported\n\n", vmajor, vminor);
+			exit(1);
+		}
+		else if ((vmajor == 3 && vminor > 2) || vmajor > 3) {
 			glProfileAttrib = NSOpenGLProfileVersion4_1Core;
 		}
 		else {
