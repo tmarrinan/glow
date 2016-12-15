@@ -8,7 +8,7 @@ using namespace std;
 void display1(glow *gl, int win, unsigned long t, unsigned int dt, void *data);
 void display2(glow *gl, int win, unsigned long t, unsigned int dt, void *data);
 void resize(glow *gl, int win, unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, void *data);
-void animate(glow *gl, unsigned int id, void *data);
+void animate(glow *gl, int win, int id, void *data);
 
 int main (int argc, char **argv) {
 	glow *gl = new glow();
@@ -24,8 +24,10 @@ int main (int argc, char **argv) {
 	gl->renderFunction(win2, display2, NULL);
 	gl->resizeFunction(win2, resize, NULL);
 
-	gl->setTimeout(animate, 100, &win1);
-	gl->setTimeout(animate, 10000, &win2);
+	int t1 = 40;
+	int t2 = 500;
+	gl->setTimeout(win1, animate, t1, &t1);
+	gl->setTimeout(win2, animate, t2, &t2);
 	
 	string version, shadingVersion;
 	gl->getGLVersions(&version, &shadingVersion);
@@ -60,9 +62,8 @@ void resize(glow *gl, int win, unsigned int wW, unsigned int wH, unsigned int rW
 	gl->requestRenderFrame(win);
 }
 
-void animate(glow *gl, unsigned int id, void *data) {
-	int win = *((int*)data);
-	
+void animate(glow *gl, int win, int id, void *data) {
+	int wait = *((int*)data);
 	if (gl->requestRenderFrame(win))
-		gl->setTimeout(animate, 100, data);
+		gl->setTimeout(win, animate, wait, data);
 }

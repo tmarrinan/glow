@@ -76,12 +76,20 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	prevTime.push_back(0);
 	
 	HWND mainwindow;
-	if (borderless)
-		mainwindow = CreateWindowEx(WS_EX_APPWINDOW, glClass, wtitle.c_str(), WS_POPUP, x, y, width, height, NULL, NULL, hinst, this);
-	else
-		mainwindow = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, NULL, NULL, hinst, this);
-
-
+	RECT wRect;
+	wRect.left = x;
+	wRect.top = y;
+	wRect.right = x+width;
+	wRect.bottom = y+height;
+	if (borderless) {
+		AdjustWindowRectEx(&wRect, WS_POPUP, false, WS_EX_APPWINDOW);
+		mainwindow = CreateWindowEx(WS_EX_APPWINDOW, glClass, wtitle.c_str(), WS_POPUP, wRect.left, wRect.top, wRect.right-wRect.left, wRect.bottom-wRect.top, NULL, NULL, hinst, this);
+	}
+	else {
+		AdjustWindowRectEx(&wRect, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, false, NULL);
+		mainwindow = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, wRect.left, wRect.top, wRect.right-wRect.left, wRect.bottom-wRect.top, NULL, NULL, hinst, this);
+	}
+	
 	HDC display = GetDC(mainwindow);
 	if (display == NULL) {
 		fprintf(stderr, "ERROR getting window device context\n");
@@ -159,7 +167,6 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 		};
 
 		wglChoosePixelFormatARB(display, iPixelFormatAttribList, NULL,1, &indexPixelFormat, &numPixelFormats);
-		printf("index pixel format: %d (%u)\n", indexPixelFormat, numPixelFormats);
 		SetPixelFormat(display, indexPixelFormat, &pfd);
 
 		glContext = wglCreateContextAttribsARB(display, 0, iContextAttribs);
@@ -222,41 +229,29 @@ void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigne
 	resizeData[winId] = data;
 }
 
-unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
-	int tId = timerId;
+int glow::setTimeout(int winId, void (*callback)(glow *gl, int wid, int timeoutId, void *data), unsigned int wait, void *data) {
+	if (!winIsOpen[winId])
+		return -1;
 	
-	int i;
-	for(i=0; i<winIsOpen.size(); i++) {
-		if (winIsOpen[i]) break;
-	}
+	int tId = timerId;
 
 	timeoutCallbacks[tId] = callback;
 	timeoutData[tId] = data;
-	//SetTimer(windowList[i], tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
-	SetTimer(NULL, tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
-
+	SetTimer(windowList[winId], tId+IDT_TIMER1, wait, (TIMERPROC)timeoutTimerFired);
 	timerId = (timerId + 1) % GLOW_MAX_TIMERS;
+	
 	return tId;
 }
 
-void glow::cancelTimeout(unsigned int timeoutId) {
-	KillTimer(windowList[0], timeoutId+IDT_TIMER1);
+void glow::cancelTimeout(int winId, int timeoutId) {
+	if (winIsOpen[winId])
+		KillTimer(windowList[winId], timeoutId+IDT_TIMER1);
 }
 
 VOID CALLBACK glow::timeoutTimerFired(HWND hwnd, UINT message, UINT idTimer, DWORD dwTime) {
-	//glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	//KillTimer(hwnd, idTimer);
-	//PostMessage(hwnd, WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);
-	
-	/*glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	int i;
-	for(i=0; i<self->winIsOpen.size(); i++) {
-		if (self->winIsOpen[i]) break;
-	}
-	KillTimer(NULL, idTimer);
-	PostMessage(self->windowList[i], WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);*/
-	KillTimer(NULL, idTimer);
-	printf("timer fired (%u)\n", (unsigned int)hwnd);
+	glow *self = (glow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	KillTimer(hwnd, idTimer);
+	PostMessage(hwnd, WM_USER, self->TIMER_MESSAGE, idTimer-IDT_TIMER1);
 }
 
 void glow::mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data) {
@@ -490,7 +485,7 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 				self->isIdle[winId] = true;
 			}
 			else if (wParam == self->TIMER_MESSAGE) {
-				self->timeoutCallbacks[lParam](self, lParam, self->timeoutData[lParam]);
+				self->timeoutCallbacks[lParam](self, winId, lParam, self->timeoutData[lParam]);
 			}
 		default:
 			return DefWindowProc(hwnd, msg, wParam, lParam);

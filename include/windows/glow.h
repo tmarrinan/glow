@@ -59,7 +59,7 @@ typedef struct GLOW_CharGlyph {
 	int advanceX;
 } GLOW_CharGlyph;
 
-typedef void(*timer_func)(glow *gl, unsigned int timeoutId, void *data);
+typedef void(*timer_func)(glow *gl, int wid, int timeoutId, void *data);
 
 extern PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
 extern PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
@@ -141,8 +141,8 @@ public:
 	GLOW_API void renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data);
 	GLOW_API void idleFunction(int winId, void (*callback)(glow *gl, int wid, void *data), void *data);
 	GLOW_API void resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data), void *data);
-	GLOW_API unsigned int setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data);
-	GLOW_API void cancelTimeout(unsigned int timeoutId);
+	GLOW_API int setTimeout(int winId, void (*callback)(glow *gl, int wid, int timeoutId, void *data), unsigned int wait, void *data);
+	GLOW_API void cancelTimeout(int winId, int timeoutId);
 
 	GLOW_API void mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
 	GLOW_API void mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
