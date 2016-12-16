@@ -56,7 +56,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	ex.hInstance = hinst;
 	ex.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	ex.hCursor = LoadCursor(NULL, IDC_ARROW);
-	ex.hbrBackground = NULL;
+	ex.hbrBackground = (HBRUSH)(COLOR_BACKGROUND);//NULL;
 	ex.lpszMenuName = NULL;
 	ex.lpszClassName = glClass;
 	ex.hIconSm = NULL;
@@ -90,6 +90,11 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 		mainwindow = CreateWindowEx(NULL, glClass, wtitle.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, wRect.left, wRect.top, wRect.right-wRect.left, wRect.bottom-wRect.top, NULL, NULL, hinst, this);
 	}
 	
+	return wid;
+}
+
+	
+int glow::windowCreated(HWND mainwindow) {
 	HDC display = GetDC(mainwindow);
 	if (display == NULL) {
 		fprintf(stderr, "ERROR getting window device context\n");
@@ -179,12 +184,8 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 			return -1;
 		}
 	}
-
-	ShowWindow(mainwindow, SW_SHOW);
-	UpdateWindow(mainwindow);
 	
 	displayList.push_back(display);
-	windowList.push_back(mainwindow);
 	glCtxList.push_back(glContext);
 
 	renderCallback.push_back(NULL);
@@ -207,7 +208,20 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	keyDownData.push_back(NULL);
 	keyUpData.push_back(NULL);
 	
-	return wid;
+	int wid = windowList.size();
+	requiresRender[wid] = true;
+	startTime[wid] = GetTickCount64();
+	prevTime[wid] = startTime[wid];
+	isIdle[wid] = true;
+	winIsOpen[wid] = true;
+	windowList.push_back(mainwindow);
+	
+	ShowWindow(mainwindow, SW_SHOWNORMAL);
+	UpdateWindow(mainwindow);
+	
+	windowCount++;
+	
+	return 0;
 }
 
 void glow::setActiveWindow(int winId) {
@@ -323,8 +337,14 @@ void glow::setWindowGeometry(int winId, int x, int y, unsigned int width, unsign
 	if (x == GLOW_CENTER_HORIZONTAL) x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (width / 2);
 	if (y == GLOW_CENTER_VERTICAL) y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (height / 2);
 	
+	RECT wRect;
+	wRect.left = x;
+	wRect.top = y;
+	wRect.right = x+width;
+	wRect.bottom = y+height;
+	AdjustWindowRectEx(&wRect, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, false, NULL);
 	SetWindowLongPtr(windowList[winId], GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
-	SetWindowPos(windowList[winId], HWND_TOP, x, y, width, height, SWP_SHOWWINDOW);
+	SetWindowPos(windowList[winId], HWND_TOP, wRect.left, wRect.top, wRect.right-wRect.left, wRect.bottom-wRect.top, SWP_SHOWWINDOW);
 }
 
 void glow::setWindowTitle(int winId, std::string title) {
@@ -389,12 +409,7 @@ LRESULT CALLBACK glow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_CREATE:
 			self = (glow*)(((CREATESTRUCT*)lParam)->lpCreateParams);
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (long)self);
-			self->requiresRender[self->windowCount] = true;
-			self->startTime[self->windowCount] = GetTickCount64();
-			self->prevTime[self->windowCount] = self->startTime[self->windowCount];
-			self->isIdle[self->windowCount] = true;
-			self->winIsOpen[self->windowCount] = true;
-			self->windowCount++;
+			self->windowCreated(hwnd);
 			break;
 		case WM_CLOSE:
 			wglDeleteContext(self->glCtxList[winId]);

@@ -15,15 +15,15 @@ int main (int argc, char **argv) {
 
 	//gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_FLAGS_NONE);
 	gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
-	int win1 = gl->createWindow("Window #1", 600,  24, 1024, 768, GLOW_WINDOW_BASE);
-	int win2 = gl->createWindow("Window #2",   0,  24,  600, 400, GLOW_WINDOW_BASE);
+	int win1 = gl->createWindow("Window #1", 480,  36, 800, 600, GLOW_WINDOW_BASE);
+	int win2 = gl->createWindow("Window #2",  20,  36, 400, 300, GLOW_WINDOW_BASE);
 	
 	gl->renderFunction(win1, display1, NULL);
 	gl->resizeFunction(win1, resize, NULL);
 
 	gl->renderFunction(win2, display2, NULL);
 	gl->resizeFunction(win2, resize, NULL);
-
+	
 	int t1 = 40;
 	int t2 = 500;
 	int id1 = gl->setTimeout(win1, animate, t1, &t1);
@@ -40,6 +40,7 @@ int main (int argc, char **argv) {
 
 void display1(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
 	float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
+	//printf("render %d\n", win);
 	
 	glClearColor(0.2*c, 0.2*c, 0.8*c, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -49,6 +50,7 @@ void display1(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
 
 void display2(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
 	float c = (float)(abs((int)(t % 4000) - 2000)) / 2000.0f;
+	//printf("render %d\n", win);
 	
 	glClearColor(0.8*c, 0.2*c, 0.2*c, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -57,7 +59,7 @@ void display2(glow *gl, int win, unsigned long t, unsigned int dt, void *data) {
 }
 
 void resize(glow *gl, int win, unsigned int wW, unsigned int wH, unsigned int rW, unsigned int rH, void *data) {
-    printf("window size: %ux%u (%ux%u)\n", wW, wH, rW, rH);
+    printf("window %d size: %ux%u (%ux%u)\n", win, wW, wH, rW, rH);
 	glViewport(0, 0, rW, rH);
 	gl->requestRenderFrame(win);
 }

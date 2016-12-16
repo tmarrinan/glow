@@ -126,6 +126,7 @@ private:
 	static BOOL ctrlHandler(DWORD fdwCtrlType);
 	static unsigned short translateKey(WPARAM vk, LPARAM lParam);
 	static unsigned short specialKey(WPARAM vk, LPARAM lParam);
+	int windowCreated(HWND mainwindow);
 	void convertUTF8toUTF32 (unsigned char *source, uint16_t bytes, uint32_t* target);
 	void getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, unsigned int *width, unsigned int *height, unsigned int *baseline, std::vector<GLOW_CharGlyph> *glyphs);
 
