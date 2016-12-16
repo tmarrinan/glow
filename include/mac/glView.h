@@ -32,8 +32,8 @@
 - (void) keyUp:(NSEvent*)event;
 - (void) flagsChanged:(NSEvent*)event;
 
-- (unsigned int) setTimeout:(void (*)(glow *gl, unsigned int timeoutId, void *data))callback wait:(unsigned int)wait data:(void*)data;
-- (void) cancelTimeout:(unsigned int)timeoutId;
+- (int) setTimeout:(void (*)(glow *gl, int wid, int timeoutId, void *data))callback wait:(unsigned int)wait data:(void*)data;
+- (void) cancelTimeout:(int)timeoutId;
 - (void) idleTimerFired:(NSTimer*)sender;
 - (void) timeoutTimerFired:(NSTimer*)sender;
 - (void) setAsActiveContext;

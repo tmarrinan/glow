@@ -176,19 +176,20 @@ void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigne
 	[view resizeFunction:callback data:data];
 }
 
-unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
-	int i;
-	for(i=0; i<winIsOpen.size(); i++) {
-		if (winIsOpen[i]) break;
-	}
+int glow::setTimeout(int winId, void (*callback)(glow *gl, int wid, int timeoutId, void *data), unsigned int wait, void *data) {
+	if (!winIsOpen[winId])
+		return -1;
 
-	glView* view = (glView*)[glCtxList[i] view];
-	unsigned int t = [view setTimeout:callback wait:wait data:data];
+	glView* view = (glView*)[glCtxList[winId] view];
+	int t = [view setTimeout:callback wait:wait data:data];
 	return t;
 }
 
-void glow::cancelTimeout(unsigned int timeoutId) {
-	glView* view = (glView*)[glCtxList[0] view];
+void glow::cancelTimeout(int winId, int timeoutId) {
+	if (!winIsOpen[winId])
+		return;
+
+	glView* view = (glView*)[glCtxList[winId] view];
 	[view cancelTimeout:timeoutId];
 }
 
@@ -278,6 +279,9 @@ void glow::windowClosed(NSWindow *window) {
 		winIsOpen[winId] = false;
 
 		glView* view = (glView*)[glCtxList[winId] view];
+		for(int i=0; i<GLOW_MAX_TIMERS; i++) {
+			[view cancelTimeout:i];
+		}
 		[view release];
 		[glCtxList[winId] release];
 		[windowList[winId] release];

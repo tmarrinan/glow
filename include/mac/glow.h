@@ -82,8 +82,8 @@ public:
 	void renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data);
 	void idleFunction(int winId, void (*callback)(glow *gl, int wid, void *data), void *data);
 	void resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data), void *data);
-	unsigned int setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data);
-	void cancelTimeout(unsigned int timeoutId);
+	int setTimeout(int winId, void (*callback)(glow *gl, int wid, int timeoutId, void *data), unsigned int wait, void *data);
+	void cancelTimeout(int winId, int timeoutId);
 
 	void mouseDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
 	void mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);

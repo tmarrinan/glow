@@ -47,7 +47,7 @@
 
     unsigned int timerId;
     NSTimer *timeoutTimers[GLOW_MAX_TIMERS];
-    void (* timeoutCallbacks[GLOW_MAX_TIMERS])(glow *gl, unsigned int timeoutId, void *data);
+    void (* timeoutCallbacks[GLOW_MAX_TIMERS])(glow *gl, int wid, int timeoutId, void *data);
     void *timeoutData[GLOW_MAX_TIMERS];
 }
 
@@ -100,6 +100,12 @@
     dpiScale = 1.0;
 
     timerId = 0;
+
+    for(int i=0; i<GLOW_MAX_TIMERS; i++) {
+        timeoutTimers[i] = nil;
+        timeoutCallbacks[i] = NULL;
+        timeoutData[i] = NULL;
+    }
 
     return self;
 }
@@ -268,12 +274,14 @@
 
 - (void) idleTimerFired:(NSTimer*)sender {
     idleCallback(glowPtr, winId, idleData);
+    sender = nil;
 }
 
 - (void) timeoutTimerFired:(NSTimer*)sender {
     NSNumber *tId = [sender userInfo];
-    unsigned int timeoutId = [tId intValue];
-    timeoutCallbacks[timeoutId](glowPtr, timeoutId, timeoutData[timeoutId]);
+    int timeoutId = [tId intValue];
+    timeoutCallbacks[timeoutId](glowPtr, winId, timeoutId, timeoutData[timeoutId]);
+    timeoutTimers[timeoutId] = nil;
 }
 
 - (void) setAsActiveContext {
@@ -403,7 +411,7 @@
     idleData = data;
 }
 
-- (unsigned int) setTimeout:(void (*)(glow *gl, unsigned int timeoutId, void *data))callback wait:(unsigned int)wait data:(void*)data {
+- (int) setTimeout:(void (*)(glow *gl, int wid, int timeoutId, void *data))callback wait:(unsigned int)wait data:(void*)data {
     id tId = [NSNumber numberWithInteger: timerId];
     NSTimer *timeoutTimer = [NSTimer timerWithTimeInterval:(double)wait/1000.0 target:self selector:@selector(timeoutTimerFired:) userInfo:tId repeats:NO];
     [[NSRunLoop currentRunLoop] addTimer:timeoutTimer forMode:NSDefaultRunLoopMode];
@@ -413,11 +421,15 @@
     timeoutCallbacks[timerId] = callback;
     timeoutData[timerId] = data;
     timerId = (timerId + 1) % GLOW_MAX_TIMERS;
+
     return [tId intValue];
 }
 
-- (void) cancelTimeout:(unsigned int)timeoutId {
-    [timeoutTimers[timeoutId] invalidate];
+- (void) cancelTimeout:(int)timeoutId {
+    if (timeoutTimers[timeoutId] != nil) {
+        [timeoutTimers[timeoutId] invalidate];
+        timeoutTimers[timeoutId] = nil;
+    }
 }
 
 - (void) resizeFunction:(void (*)(glow *gl, int winId, unsigned int windowW, unsigned int windowH, unsigned int renderW, unsigned int renderH, void *data))callback data:(void*)data {
