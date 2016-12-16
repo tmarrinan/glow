@@ -28,7 +28,6 @@ int main (int argc, char **argv) {
 	int t2 = 500;
 	int id1 = gl->setTimeout(win1, animate, t1, &t1);
 	int id2 = gl->setTimeout(win2, animate, t2, &t2);
-	printf("app: w1: %d, w2: %d, t1: %d, t2: %d\n", win1, win2, id1, id2);
 	
 	string version, shadingVersion;
 	gl->getGLVersions(&version, &shadingVersion);
