@@ -170,7 +170,7 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	requiresRender.push_back(false);
 	initWindowPlacement.push_back(false);
 	isIdle.push_back(false);
-	winIsOpen.push_back(false);
+	winIsOpen.push_back(2); // 0 => closed, 1=> open, 2 => opening
 	XMoveWindow(display, mainwindow, x, y);
 	
 	windowList.push_back(mainwindow);
@@ -221,13 +221,17 @@ void glow::resizeFunction(int winId, void (*callback)(glow *gl, int wid, unsigne
 	resizeData[winId] = data;
 }
 
-unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId, void *data), unsigned int wait, void *data) {
+int glow::setTimeout(int winId, void (*callback)(glow *gl, int wid, int timeoutId, void *data), unsigned int wait, void *data) {	
+	if (!winIsOpen[winId])
+		return -1;
+
 	int tId = timerId;
 	struct sigevent se;
 	struct itimerspec ts;
 
 	GLOW_TimerData *tdata = (GLOW_TimerData*)malloc(sizeof(GLOW_TimerData));
 	tdata->glow_ptr = this;
+	tdata->win_id = winId;
 	tdata->timer_id = tId;
 
 	se.sigev_notify = SIGEV_THREAD;
@@ -250,30 +254,29 @@ unsigned int glow::setTimeout(void (*callback)(glow *gl, unsigned int timeoutId,
 	return tId;
 }
 
-void glow::cancelTimeout(unsigned int timeoutId) {
+void glow::cancelTimeout(int winId, int timeoutId) {
+	if (!winIsOpen[winId])
+		return;
+
 	timer_delete(timeoutTimers[timeoutId]);
 }
 
 void glow::timeoutTimerFired(union sigval arg) {
 	GLOW_TimerData *data = (GLOW_TimerData*)arg.sival_ptr;
-
-	XLockDisplay(data->glow_ptr->display);
-
-	int i;
-	for(i=0; i<data->glow_ptr->winIsOpen.size(); i++) {
-		if (data->glow_ptr->winIsOpen[i]) break;
-	}
+	if (data->glow_ptr->winIsOpen[data->win_id]) {
+		XLockDisplay(data->glow_ptr->display);
 	
-	XClientMessageEvent timeoutEvent;
-	timeoutEvent.type = ClientMessage;
-	timeoutEvent.window = data->glow_ptr->windowList[i];
-	timeoutEvent.message_type = data->glow_ptr->timeoutMessage;
-	timeoutEvent.format = 32;
-	timeoutEvent.data.l[0] = data->timer_id;
-	XSendEvent(data->glow_ptr->display, data->glow_ptr->windowList[i], False, 0, (XEvent*)&timeoutEvent);
-	XFlush(data->glow_ptr->display);
+		XClientMessageEvent timeoutEvent;
+		timeoutEvent.type = ClientMessage;
+		timeoutEvent.window = data->glow_ptr->windowList[data->win_id];
+		timeoutEvent.message_type = data->glow_ptr->timeoutMessage;
+		timeoutEvent.format = 32;
+		timeoutEvent.data.l[0] = data->timer_id;
+		XSendEvent(data->glow_ptr->display, data->glow_ptr->windowList[data->win_id], False, 0, (XEvent*)&timeoutEvent);
+		XFlush(data->glow_ptr->display);
 
-	XUnlockDisplay(data->glow_ptr->display);
+		XUnlockDisplay(data->glow_ptr->display);
+	}
 
 	timer_delete(data->glow_ptr->timeoutTimers[data->timer_id]);
 	free(data);
@@ -431,7 +434,7 @@ void glow::runLoop() {
     				startTime[winId] = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     				prevTime[winId] = startTime[winId];
 					isIdle[winId] = true;
-					winIsOpen[winId] = true;
+					winIsOpen[winId] = 1;
 					windowCount++;
 					XSetWMProtocols(display, windowList[winId], &wmDeleteMessage, 1);
 					break;
@@ -554,11 +557,11 @@ void glow::runLoop() {
 						requiresRender[winId] = false;
 						glXDestroyContext(display, glCtxList[winId]);
 						XDestroyWindow(display, windowList[winId]);
-						winIsOpen[winId] = false;
+						winIsOpen[winId] = 0;
 						windowCount--;
 					}
 					else if (event.xclient.message_type == timeoutMessage) {						
-						timeoutCallbacks[event.xclient.data.l[0]](this, event.xclient.data.l[0], timeoutData[event.xclient.data.l[0]]);
+						timeoutCallbacks[event.xclient.data.l[0]](this, winId, event.xclient.data.l[0], timeoutData[event.xclient.data.l[0]]);
 					}
 					else if (event.xclient.message_type == idleMessage) {
 						idleCallback[winId](this, winId, idleData[winId]);
