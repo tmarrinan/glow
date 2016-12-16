@@ -19,7 +19,7 @@ int main (int argc, char **argv) {
 
 	gl->initialize(GLOW_OPENGL_CORE, 3, 2, GLOW_FLAGS_NONE);
 	//gl->initialize(GLOW_OPENGL_LEGACY, 0, 0, GLOW_FLAGS_NONE);
-	int win = gl->createWindow("Interaction", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 1904, 768, GLOW_WINDOW_BASE);
+	int win = gl->createWindow("Interaction", GLOW_CENTER_HORIZONTAL, GLOW_CENTER_VERTICAL, 1024, 768, GLOW_WINDOW_BASE);
 
 	gl->renderFunction(win, display, NULL);
 	gl->resizeFunction(win, resize, NULL);
