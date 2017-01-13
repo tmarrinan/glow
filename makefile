@@ -1,8 +1,7 @@
 MACHINE= $(shell uname -s)
 CXX= g++
 
-#PREFIX= /usr/local
-PREFIX= /Users/tmarrinan/Dev/glow
+PREFIX= /usr/local
 VERSION= 1.0.1
 COMPATIBILITY= 1.0.0
 
