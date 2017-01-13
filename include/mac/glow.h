@@ -1,7 +1,6 @@
 #ifndef __GLOW_MAC_H__
 #define __GLOW_MAC_H__
 
-//#include <OpenGL/gl.h>
 #include <epoxy/gl.h>
 
 #ifdef __OBJC__

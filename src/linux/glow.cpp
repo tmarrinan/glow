@@ -1,8 +1,6 @@
 #include "glow.h"
 
 
-PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
-
 // GLOW C++ Interface
 void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags) {
 	glProfile = profile;
