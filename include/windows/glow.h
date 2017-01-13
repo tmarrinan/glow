@@ -8,10 +8,6 @@
 #endif
 
 #include <windows.h>
-//#include <GL/gl.h>
-//#include <GL/glu.h>
-//#include <GL/glext.h>
-//#include <GL/wglext.h>
 #include <epoxy/gl.h>
 #include <epoxy/wgl.h>
 
@@ -63,9 +59,6 @@ typedef struct GLOW_CharGlyph {
 
 typedef void(*timer_func)(glow *gl, int wid, int timeoutId, void *data);
 
-extern PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
-extern PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
-extern PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB;
 
 class glow {
 private:

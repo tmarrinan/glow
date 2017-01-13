@@ -8,9 +8,6 @@
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/extensions/XInput2.h>
-//#include <GL/gl.h>
-//#include <GL/glx.h>
-//#include <GL/glu.h>
 #include <epoxy/gl.h>
 #include <epoxy/glx.h>
 
@@ -68,7 +65,6 @@ typedef struct GLOW_CharGlyph {
 
 typedef void (*timer_func)(glow *gl, int wid, int timeoutId, void *data);
 
-extern PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB;
 
 class glow {
 private:
