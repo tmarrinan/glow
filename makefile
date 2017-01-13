@@ -18,7 +18,7 @@ GLOW_OBJDIR= objs
 GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glView.o glow.o)
 
 TEST_INC= -I/usr/local/include/ -I/usr/local/include/freetype2 -I./include
-TEST_LIB= -L/usr/local/lib -L./lib -lglow -lepoxy -lfreetype -framework Cocoa -framework OpenGL
+TEST_LIB= -L/usr/local/lib -L./lib -lglow -lepoxy -lfreetype -framework Cocoa
 TEST_BIN= examples/bin
 TEST_EXE= $(addprefix $(TEST_BIN)/, text multi interact)
 TEST_OBJS= examples/apps/text/objs/*.o examples/apps/multi/objs/*.o examples/apps/interact/objs/*.o
@@ -51,7 +51,6 @@ $(GLOW_OBJDIR):
 else
 
 GLOW_INC= -I/usr/include -I/usr/include/freetype2 -I./include
-#GLOW_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
 GLOW_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lepoxy -lfreetype -lX11 -lrt
 GLOW_LIBDIR_S= lib/static
 GLOW_LIBDIR_D= lib
@@ -61,7 +60,6 @@ GLOW_OBJDIR= objs
 GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glow.o)
 
 TEST_INC= -I/usr/include -I/usr/include/freetype2 -I./include
-#TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib/static -lglow -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
 TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib/static -lglow -lepoxy -lfreetype -lX11 -lrt
 TEST_BIN= examples/bin
 TEST_EXE= $(addprefix $(TEST_BIN)/, text multi interact)

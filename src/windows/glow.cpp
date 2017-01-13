@@ -31,7 +31,7 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	offsetsFromUTF8[3] = 0x03C82080UL;
 }
 
-int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype) {	
+int glow::createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowType) {	
 	if (windowList.size() >= GLOW_MAX_WINDOWS)
 		return -1;
 	
@@ -40,8 +40,8 @@ int glow::createWindow(std::string title, int x, int y, unsigned int width, unsi
 	HINSTANCE hinst = GetModuleHandle(NULL);
 
 	int wid = windowList.size();
-	bool hiDPISupport = windowtype & GLOW_WINDOW_HIDPI;
-	bool borderless = windowtype & GLOW_WINDOW_BORDERLESS;
+	bool hiDPISupport = windowType & GLOW_WINDOW_HIDPI;
+	bool borderless = windowType & GLOW_WINDOW_BORDERLESS;
 	
 	WNDCLASSEX ex;
 	ex.cbSize = sizeof(WNDCLASSEX);
@@ -769,9 +769,9 @@ unsigned short glow::specialKey(WPARAM vk, LPARAM lParam) {
     return key;
 }
 
-void glow::createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr) {
+void glow::createFontFace(std::string fontFile, unsigned int size, GLOW_FontFace **facePtr) {
 	*facePtr = (GLOW_FontFace*)malloc(sizeof(GLOW_FontFace));
-	if(FT_New_Face(ft, fontfile.c_str(), 0, &((*facePtr)->face))) {
+	if(FT_New_Face(ft, fontFile.c_str(), 0, &((*facePtr)->face))) {
 		fprintf(stderr, "Error: could not open font\n");
 		return;
 	}

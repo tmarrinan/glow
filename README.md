@@ -24,7 +24,7 @@ A Cross-Platform Modern OpenGL Toolkit that Abstracts Native Windowing and Syste
     * Open the 'libepoxy' folder just created in Windows Explorer
         * Right-click, select 'New' -> 'Folder', name it 'build'
         * Right-click, select 'New' -> 'Folder', name it 'install'
-    * Open 'CMake (cmake-gui)'
+    * Open 'CMake (cmake-gui)' application
         * Click 'Browse Source...' and select the 'libepoxy' folder
         * Click 'Browse Build...' and select the 'libepoxy/build' folder
         * Click 'Configure', click 'Finish' in popup window

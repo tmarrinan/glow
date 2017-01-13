@@ -76,7 +76,7 @@ public:
 	~glow() {};
  
 	void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags);
-	int createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype);
+	int createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowType);
 	void setActiveWindow(int winId);
 
 	void renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data);
@@ -102,7 +102,7 @@ public:
 	void setWindowTitle(int winId, std::string title);
 	void runLoop();
 
-	void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
+	void createFontFace(std::string fontFile, unsigned int size, GLOW_FontFace **facePtr);
 	void destroyFontFace(GLOW_FontFace **facePtr);
 	void setFontSize(GLOW_FontFace *face, unsigned int size);
 	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);

@@ -131,7 +131,7 @@ public:
 
 	
 	GLOW_API void initialize(unsigned int profile, unsigned int vmajor, unsigned int vminor, unsigned int flags);
-	GLOW_API int createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowtype);
+	GLOW_API int createWindow(std::string title, int x, int y, unsigned int width, unsigned int height, unsigned int windowType);
 	GLOW_API void setActiveWindow(int winId);
 
 	GLOW_API void renderFunction(int winId, void (*callback)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data), void *data);
@@ -155,7 +155,7 @@ public:
 	GLOW_API void setWindowTitle(int winId, std::string title);
 	GLOW_API void runLoop();
 
-	GLOW_API void createFontFace(std::string fontfile, unsigned int size, GLOW_FontFace **facePtr);
+	GLOW_API void createFontFace(std::string fontFile, unsigned int size, GLOW_FontFace **facePtr);
 	GLOW_API void destroyFontFace(GLOW_FontFace **facePtr);
 	GLOW_API void setFontSize(GLOW_FontFace *face, unsigned int size);
 	GLOW_API void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
