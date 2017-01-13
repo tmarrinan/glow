@@ -8,10 +8,12 @@
 #endif
 
 #include <windows.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glext.h>
-#include <GL/wglext.h>
+//#include <GL/gl.h>
+//#include <GL/glu.h>
+//#include <GL/glext.h>
+//#include <GL/wglext.h>
+#include <epoxy/gl.h>
+#include <epoxy/wgl.h>
 
 #include <iostream>
 #include <string>

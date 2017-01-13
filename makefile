@@ -1,24 +1,28 @@
 MACHINE= $(shell uname -s)
 CXX= g++
-PREFIX= /usr/local
+
+#PREFIX= /usr/local
+PREFIX= /Users/tmarrinan/Dev/glow
+VERSION= 1.0.1
+COMPATIBILITY= 1.0.0
 
 ### MAC OS X ###
 ifeq ($(MACHINE),Darwin)
 
-GLOW_INC= -I/usr/local/include/freetype2 -I./include
-GLOW_LIB= -L/usr/local/lib -lfreetype -framework Cocoa -framework OpenGL
-GLOW_LIBDIR_S= ./lib/static
-GLOW_LIBDIR_D= ./lib
+GLOW_INC= -I/usr/local/include/ -I/usr/local/include/freetype2 -I./include
+GLOW_LIB= -L/usr/local/lib -lepoxy -lfreetype -framework Cocoa
+GLOW_LIBDIR_S= lib/static
+GLOW_LIBDIR_D= lib
 GLOW_LIBS_S= $(addprefix $(GLOW_LIBDIR_S)/, libglow.a)
 GLOW_LIBS_D= $(addprefix $(GLOW_LIBDIR_D)/, libglow.dylib)
-GLOW_OBJDIR= ./objs
+GLOW_OBJDIR= objs
 GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glView.o glow.o)
 
-TEST_INC= -I/usr/local/include/freetype2 -I./include
-TEST_LIB= -L/usr/local/lib -L./lib -lglow -lfreetype -framework Cocoa -framework OpenGL
-TEST_BIN= ./examples/bin
+TEST_INC= -I/usr/local/include/ -I/usr/local/include/freetype2 -I./include
+TEST_LIB= -L/usr/local/lib -L./lib -lglow -lepoxy -lfreetype -framework Cocoa -framework OpenGL
+TEST_BIN= examples/bin
 TEST_EXE= $(addprefix $(TEST_BIN)/, text multi interact)
-TEST_OBJS= ./examples/apps/text/objs/*.o ./examples/apps/multi/objs/*.o ./examples/apps/interact/objs/*.o
+TEST_OBJS= examples/apps/text/objs/*.o examples/apps/multi/objs/*.o examples/apps/interact/objs/*.o
 
 all: $(GLOW_LIBS_S) $(GLOW_LIBS_D)
 
@@ -27,7 +31,7 @@ $(GLOW_LIBS_S): $(GLOW_LIBDIR_S) $(GLOW_OBJS)
 	ar -cq $(GLOW_LIBS_S) $(GLOW_OBJS)
 
 $(GLOW_LIBS_D): $(GLOW_LIBDIR_D) $(GLOW_OBJS)
-	$(CXX) -o $(GLOW_LIBS_D) $(GLOW_OBJS) $(GLOW_LIB) -dynamiclib
+	$(CXX) -o $(GLOW_LIBS_D) $(GLOW_OBJS) $(GLOW_LIB) -dynamiclib -install_name '$(PREFIX)/$(GLOW_LIBS_D)' -compatibility_version $(COMPATIBILITY) -current_version $(VERSION)
 
 $(GLOW_LIBDIR_S):
 	mkdir -p $(GLOW_LIBDIR_S)
@@ -48,19 +52,21 @@ $(GLOW_OBJDIR):
 else
 
 GLOW_INC= -I/usr/include -I/usr/include/freetype2 -I./include
-GLOW_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
-GLOW_LIBDIR_S= ./lib/static
-GLOW_LIBDIR_D= ./lib
+#GLOW_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
+GLOW_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -lepoxy -lfreetype -lX11 -lrt
+GLOW_LIBDIR_S= lib/static
+GLOW_LIBDIR_D= lib
 GLOW_LIBS_S= $(addprefix $(GLOW_LIBDIR_S)/, libglow.a)
 GLOW_LIBS_D= $(addprefix $(GLOW_LIBDIR_D)/, libglow.so)
-GLOW_OBJDIR= ./objs
+GLOW_OBJDIR= objs
 GLOW_OBJS= $(addprefix $(GLOW_OBJDIR)/, glow.o)
 
 TEST_INC= -I/usr/include -I/usr/include/freetype2 -I./include
-TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib/static -lglow -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
-TEST_BIN= ./examples/bin
+#TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib/static -lglow -lGL -lGLU -lfreetype -lX11 -lrt -lpthread
+TEST_LIB= -L/usr/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L./lib/static -lglow -lepoxy -lfreetype -lX11 -lrt
+TEST_BIN= examples/bin
 TEST_EXE= $(addprefix $(TEST_BIN)/, text multi interact)
-TEST_OBJS= ./examples/apps/text/objs/*.o ./examples/apps/multi/objs/*.o ./examples/apps/interact/objs/*.o
+TEST_OBJS= examples/apps/text/objs/*.o examples/apps/multi/objs/*.o examples/apps/interact/objs/*.o
 
 all: $(GLOW_LIBS_S) $(GLOW_LIBS_D)
 

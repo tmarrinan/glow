@@ -1,7 +1,8 @@
 #include <sys/time.h>
 #import <Cocoa/Cocoa.h>
-#import <OpenGL/OpenGL.h>
-#import <OpenGL/gl.h>
+//#import <OpenGL/OpenGL.h>
+//#import <OpenGL/gl.h>
+#import <epoxy/gl.h>
 
 #import "glow.h"
 
