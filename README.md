@@ -10,7 +10,7 @@ A Cross-Platform Modern OpenGL Toolkit that Abstracts Native Windowing and Syste
 #### Install (Windows)
 
 * Download and install Microsoft Visual Studio
-    * Recommended [Windows Visual Studio Express 2013 for Windows Desktop](https://www.microsoft.com/en-us/download/details.aspx?id=44914)
+    * Recommended [Microsoft Visual Studio Express 2013 for Windows Desktop](https://www.microsoft.com/en-us/download/details.aspx?id=44914)
 * Download and install [Git](https://git-scm.com/downloads) (Windows)
 * Download and install [CMake](https://cmake.org/download/) (Windows win64-x64 Installer)
 * Clone and build Epoxy
