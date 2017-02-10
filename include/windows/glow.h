@@ -8,8 +8,10 @@
 #endif
 
 #include <windows.h>
+extern "C" {
 #include <epoxy/gl.h>
 #include <epoxy/wgl.h>
+}
 
 #include <iostream>
 #include <string>

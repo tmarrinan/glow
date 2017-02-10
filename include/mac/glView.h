@@ -1,6 +1,8 @@
 #include <sys/time.h>
 #import <Cocoa/Cocoa.h>
+extern "C" {
 #import <epoxy/gl.h>
+}
 
 #import "glow.h"
 

@@ -1,7 +1,9 @@
 #ifndef __GLOW_MAC_H__
 #define __GLOW_MAC_H__
 
+extern "C" {
 #include <epoxy/gl.h>
+}
 
 #ifdef __OBJC__
 #import <Cocoa/Cocoa.h>

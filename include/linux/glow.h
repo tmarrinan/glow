@@ -8,8 +8,10 @@
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/extensions/XInput2.h>
+extern "C" {
 #include <epoxy/gl.h>
 #include <epoxy/glx.h>
+}
 
 #include <sys/time.h>
 #include <signal.h>
