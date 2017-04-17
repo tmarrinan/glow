@@ -1,5 +1,6 @@
 #include <sys/time.h>
 #import <Cocoa/Cocoa.h>
+#import <Carbon/Carbon.h>
 extern "C" {
 #import <epoxy/gl.h>
 }
@@ -42,6 +43,7 @@ extern "C" {
 - (void) requestRenderFrame;
 
 - (unsigned short) specialKey:(unsigned short)code;
+- (unsigned short) keyEventToASCII:(NSEvent*)event;
 
 - (void) renderFunction:(void (*)(glow *gl, int wid, unsigned long t, unsigned int dt, void *data))callback data:(void*)data;
 - (void) idleFunction:(void (*)(glow *gl, int wid, void *data))callback data:(void*)data;
@@ -51,7 +53,7 @@ extern "C" {
 - (void) mouseUpListener:(void (*)(glow *gl, int wid, unsigned short button, int x, int y, void *data))callback data:(void*)data;
 - (void) mouseMoveListener:(void (*)(glow *gl, int wid, int x, int y, void *data))callback data:(void*)data;
 - (void) scrollWheelListener:(void (*)(glow *gl, int wid, int dx, int dy, int x, int y, void *data))callback data:(void*)data;
-- (void) keyDownListener:(void (*)(glow *gl, int wid, unsigned short key, int x, int y, void *data))callback data:(void*)data;
-- (void) keyUpListener:(void (*)(glow *gl, int wid, unsigned short key, int x, int y, void *data))callback data:(void*)data;
+- (void) keyDownListener:(void (*)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data))callback data:(void*)data;
+- (void) keyUpListener:(void (*)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data))callback data:(void*)data;
 
 @end

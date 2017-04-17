@@ -39,6 +39,10 @@ void glow::initialize(unsigned int profile, unsigned int vmajor, unsigned int vm
 	offsetsFromUTF8[2] = 0x000E2080UL;
 	offsetsFromUTF8[3] = 0x03C82080UL;
 
+	shiftmask = XkbKeysymToModifiers(display, XK_Shift_L);
+	ctrlmask = XkbKeysymToModifiers(display, XK_Control_L);
+	altmask = XkbKeysymToModifiers(display, XK_Alt_L);
+	cmdmask = XkbKeysymToModifiers(display, XK_Super_L);
 	capsmask = XkbKeysymToModifiers(display, XK_Caps_Lock);
 }
 
@@ -300,12 +304,12 @@ void glow::scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, in
 	scrollWheelData[winId] = data;
 }
 
-void glow::keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+void glow::keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data) {
 	keyDownCallback[winId] = callback;
 	keyDownData[winId] = data;
 }
 
-void glow::keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+void glow::keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data) {
 	keyUpCallback[winId] = callback;
 	keyUpData[winId] = data;
 }
@@ -423,7 +427,17 @@ void glow::runLoop() {
 			}	
 			if (winId < 0) continue;
 
-			XLockDisplay(display);		
+			XLockDisplay(display);
+
+			XkbGetState(display, XkbUseCoreKbd, &kstate);
+			bool shift = kstate.locked_mods & shiftmask;
+			bool control = kstate.locked_mods & ctrlmask;
+			bool alt = kstate.locked_mods & altmask;
+			bool command = kstate.locked_mods & cmdmask;
+			bool caps = kstate.locked_mods & capsmask;
+			bool func = 0;
+
+			unsigned short mod = (func << 5) | (caps << 4) | (command << 3) | (alt << 2) | (control << 1) | (shift);
 
 			switch (event.type) {
 				case MapNotify:
@@ -455,20 +469,19 @@ void glow::runLoop() {
 
 					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
 					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyDownCallback[winId](this, winId, buffer[0], mouseX, mouseY, keyDownData[winId]);
+						keyDownCallback[winId](this, winId, buffer[0], mod, mouseX, mouseY, keyDownData[winId]);
 					}
 					else {
 						if (keysym == XK_Caps_Lock) {
-							XkbGetState(display, XkbUseCoreKbd, &kstate);
-							if (kstate.locked_mods & capsmask) {
-								keyDownCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyDownData[winId]);
+							if (caps) {
+								keyDownCallback[winId](this, winId, specialKey(keysym), mod, mouseX, mouseY, keyDownData[winId]);
 							}
 							else {
-								keyUpCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyDownData[winId]);
+								keyUpCallback[winId](this, winId, specialKey(keysym), mod, mouseX, mouseY, keyDownData[winId]);
 							}
 						}
 						else {
-							keyDownCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyDownData[winId]);
+							keyDownCallback[winId](this, winId, specialKey(keysym), mod, mouseX, mouseY, keyDownData[winId]);
 						}
 					}
 					break;
@@ -477,11 +490,11 @@ void glow::runLoop() {
 
 					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
 					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyUpCallback[winId](this, winId, buffer[0], mouseX, mouseY, keyUpData[winId]);
+						keyUpCallback[winId](this, winId, buffer[0], mod, mouseX, mouseY, keyUpData[winId]);
 					}
 					else {
 						if (keysym != XK_Caps_Lock) {
-							keyUpCallback[winId](this, winId, specialKey(keysym), mouseX, mouseY, keyUpData[winId]);
+							keyUpCallback[winId](this, winId, specialKey(keysym), mod, mouseX, mouseY, keyUpData[winId]);
 						}
 					}
 					break;

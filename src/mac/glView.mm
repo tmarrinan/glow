@@ -13,8 +13,8 @@
     void (* mouseUpCallback)(glow *gl, int wid, unsigned short button, int x, int y, void *data);
     void (* mouseMoveCallback)(glow *gl, int wid, int x, int y, void *data);
     void (* scrollWheelCallback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data);
-    void (* keyDownCallback)(glow *gl, int wid, unsigned short key, int x, int y, void *data);
-    void (* keyUpCallback)(glow *gl, int wid, unsigned short key, int x, int y, void *data);
+    void (* keyDownCallback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data);
+    void (* keyUpCallback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data);
 
     void *renderData;
     void *idleData;
@@ -178,24 +178,44 @@
 - (void) keyDown:(NSEvent*)event {
     if (!keyDownCallback) return;
 
-    unsigned char key = [[event characters] UTF8String][0];
+    unsigned long nativeMod = [NSEvent modifierFlags];
+    bool shift = nativeMod & NSEventModifierFlagShift;
+    bool control = nativeMod & NSEventModifierFlagControl;
+    bool alt = nativeMod & NSEventModifierFlagOption;
+    bool command = nativeMod & NSEventModifierFlagCommand;
+    bool caps = nativeMod & NSEventModifierFlagCapsLock;
+    bool func = nativeMod & NSEventModifierFlagFunction;
+
+    unsigned short mod = (func << 5) | (caps << 4) | (command << 3) | (alt << 2) | (control << 1) | (shift);
+
+    unsigned char key = [self keyEventToASCII:event];
     if (key < 128) {
-        keyDownCallback(glowPtr, winId, key, mouseX, mouseY, keyDownData);
+        keyDownCallback(glowPtr, winId, key, mod, mouseX, mouseY, keyDownData);
     }
     else {
-        keyDownCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyDownData);
+        keyDownCallback(glowPtr, winId, [self specialKey:[event keyCode]], mod, mouseX, mouseY, keyDownData);
     }
 }
 
 - (void) keyUp:(NSEvent*)event {
     if (!keyUpCallback) return;
 
-    unsigned char key = [[event characters] UTF8String][0];
+    unsigned long nativeMod = [NSEvent modifierFlags];
+    bool shift = nativeMod & NSEventModifierFlagShift;
+    bool control = nativeMod & NSEventModifierFlagControl;
+    bool alt = nativeMod & NSEventModifierFlagOption;
+    bool command = nativeMod & NSEventModifierFlagCommand;
+    bool caps = nativeMod & NSEventModifierFlagCapsLock;
+    bool func = nativeMod & NSEventModifierFlagFunction;
+
+    unsigned short mod = (func << 5) | (caps << 4) | (command << 3) | (alt << 2) | (control << 1) | (shift);
+
+    unsigned char key = [self keyEventToASCII:event];
     if (key < 128) {
-        keyUpCallback(glowPtr, winId, key, mouseX, mouseY, keyUpData);
+        keyUpCallback(glowPtr, winId, key, mod, mouseX, mouseY, keyUpData);
     }
     else {
-        keyUpCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyUpData);
+        keyUpCallback(glowPtr, winId, [self specialKey:[event keyCode]], mod, mouseX, mouseY, keyUpData);
     }
 }
 
@@ -247,10 +267,20 @@
             return;
     }
 
+    unsigned long nativeMod = [NSEvent modifierFlags];
+    bool shift = nativeMod & NSEventModifierFlagShift;
+    bool control = nativeMod & NSEventModifierFlagControl;
+    bool alt = nativeMod & NSEventModifierFlagOption;
+    bool command = nativeMod & NSEventModifierFlagCommand;
+    bool caps = nativeMod & NSEventModifierFlagCapsLock;
+    bool func = nativeMod & NSEventModifierFlagFunction;
+
+    unsigned short mod = (func << 5) | (caps << 4) | (command << 3) | (alt << 2) | (control << 1) | (shift);
+
     if (keydown)
-        keyDownCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyDownData);
+        keyDownCallback(glowPtr, winId, [self specialKey:[event keyCode]], mod, mouseX, mouseY, keyDownData);
     else
-        keyUpCallback(glowPtr, winId, [self specialKey:[event keyCode]], mouseX, mouseY, keyUpData);
+        keyUpCallback(glowPtr, winId, [self specialKey:[event keyCode]], mod, mouseX, mouseY, keyUpData);
 }
 
 - (void) drawRect:(NSRect)bounds {
@@ -401,6 +431,40 @@
     return key;
 }
 
+- (unsigned short) keyEventToASCII:(NSEvent*)event {
+	TISInputSourceRef currentKeyboard = TISCopyCurrentKeyboardInputSource();
+    CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData);
+    const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
+
+    unsigned long modifiers = [NSEvent modifierFlags];
+    unsigned int flags = 0;
+	if (modifiers & NSEventModifierFlagShift)
+		flags |= shiftKey;
+	if (modifiers & NSEventModifierFlagCapsLock)
+		flags |= alphaLock;
+	UInt32 modifierKeyState = (flags >> 8) & 0xFF;
+    UInt32 deadKeyState;
+
+    const size_t unicodeStringLength = 4;
+    UniChar unicodeString[unicodeStringLength];
+    UniCharCount realLength;
+
+    UCKeyTranslate(keyboardLayout,
+                   [event keyCode],
+                   kUCKeyActionDown,
+                   modifierKeyState,
+                   LMGetKbdType(),
+                   0,
+                   &deadKeyState,
+                   unicodeStringLength,
+                   &realLength,
+                   unicodeString);
+    CFRelease(currentKeyboard);
+    NSString *keys = (NSString*)CFStringCreateWithCharacters(kCFAllocatorDefault, unicodeString, realLength);
+
+    return [keys UTF8String][0];
+}
+
 - (void) renderFunction:(void (*)(glow *gl, int winId, unsigned long t, unsigned int dt, void *data))callback data:(void*)data {
     renderCallback = callback;
     renderData = data;
@@ -457,12 +521,12 @@
     scrollWheelData = data;
 }
 
-- (void) keyDownListener:(void (*)(glow *gl, int winId, unsigned short key, int x, int y, void *data))callback data:(void*)data {
+- (void) keyDownListener:(void (*)(glow *gl, int winId, unsigned short key, unsigned short modifiers, int x, int y, void *data))callback data:(void*)data {
     keyDownCallback = callback;
     keyDownData = data;
 }
 
-- (void) keyUpListener:(void (*)(glow *gl, int winId, unsigned short key, int x, int y, void *data))callback data:(void*)data {
+- (void) keyUpListener:(void (*)(glow *gl, int winId, unsigned short key, unsigned short modifiers, int x, int y, void *data))callback data:(void*)data {
     keyUpCallback = callback;
     keyUpData = data;
 }

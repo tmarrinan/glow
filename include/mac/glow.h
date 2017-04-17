@@ -91,8 +91,8 @@ public:
 	void mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
 	void mouseMoveListener(int winId, void (*callback)(glow *gl, int wid, int x, int y, void *data), void *data);
 	void scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data), void *data);
-	void keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
-	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
+	void keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data);
+	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data);
 
 	void swapBuffers(int winId);
 	bool requestRenderFrame(int winId);

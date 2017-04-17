@@ -9,7 +9,7 @@ COMPATIBILITY= 1.0.0
 ifeq ($(MACHINE),Darwin)
 
 GLOW_INC= -I/usr/local/include/ -I/usr/local/include/freetype2 -I./include
-GLOW_LIB= -L/usr/local/lib -lepoxy -lfreetype -framework Cocoa
+GLOW_LIB= -L/usr/local/lib -lepoxy -lfreetype -framework Cocoa -framework Carbon
 GLOW_LIBDIR_S= lib/static
 GLOW_LIBDIR_D= lib
 GLOW_LIBS_S= $(addprefix $(GLOW_LIBDIR_S)/, libglow.a)

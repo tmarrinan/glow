@@ -213,12 +213,12 @@ void glow::scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, in
 	[view scrollWheelListener:callback data:data];
 }
 
-void glow::keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+void glow::keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data) {
 	glView* view = (glView*)[glCtxList[winId] view];
 	[view keyDownListener:callback data:data];
 }
 
-void glow::keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data) {
+void glow::keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data) {
 	glView* view = (glView*)[glCtxList[winId] view];
 	[view keyUpListener:callback data:data];
 }

@@ -10,8 +10,8 @@ void resize(glow *gl, int win, unsigned int wW, unsigned int wH, unsigned int rW
 void onMouseDown(glow *gl, int win, unsigned short button, int x, int y, void *data);
 void onMouseUp(glow *gl, int win, unsigned short button, int x, int y, void *data);
 void onMouseMove(glow *gl, int win, int x, int y, void *data);
-void onKeyDown(glow *gl, int win, unsigned short key, int x, int y, void *data);
-void onKeyUp(glow *gl, int win, unsigned short key, int x, int y, void *data);
+void onKeyDown(glow *gl, int win, unsigned short key, unsigned short mods, int x, int y, void *data);
+void onKeyUp(glow *gl, int win, unsigned short key, unsigned short mods, int x, int y, void *data);
 void onScrollWheel(glow *gl, int win, int dx, int dy, int x, int y, void *data);
 
 int main (int argc, char **argv) {
@@ -85,8 +85,14 @@ void onMouseMove(glow *gl, int wid, int x, int y, void *data) {
 	//printf("mouse move: %d, %d\n", x, y);
 }
 
-void onKeyDown(glow *gl, int win, unsigned short key, int x, int y, void *data) {
-	printf("key down: %u\n", key);
+void onKeyDown(glow *gl, int win, unsigned short key, unsigned short mods, int x, int y, void *data) {
+	bool shift = mods & GLOW_MOD_SHIFT;
+	bool ctrl = mods & GLOW_MOD_CONTROL;
+	bool alt = mods & GLOW_MOD_ALT;
+	bool cmd = mods & GLOW_MOD_COMMAND;
+	bool caps = mods & GLOW_MOD_CAPSLOCK;
+	bool func = mods & GLOW_MOD_FUNCTION;
+	printf("key down: %u [shift %d, ctrl %d, alt %d, cmd %d, caps %d, func %d]\n", key, shift, ctrl, alt, cmd, caps, func);
 	switch (key) {
 		case 'F':
 			gl->enableFullscreen(win);
@@ -99,8 +105,14 @@ void onKeyDown(glow *gl, int win, unsigned short key, int x, int y, void *data) 
 	}
 }
 
-void onKeyUp(glow *gl, int win, unsigned short key, int x, int y, void *data) {
-	printf("key up: %u\n", key);
+void onKeyUp(glow *gl, int win, unsigned short key, unsigned short mods, int x, int y, void *data) {
+	bool shift = mods & GLOW_MOD_SHIFT;
+	bool ctrl = mods & GLOW_MOD_CONTROL;
+	bool alt = mods & GLOW_MOD_ALT;
+	bool cmd = mods & GLOW_MOD_COMMAND;
+	bool caps = mods & GLOW_MOD_CAPSLOCK;
+	bool func = mods & GLOW_MOD_FUNCTION;
+	printf("key up: %u [shift %d, ctrl %d, alt %d, cmd %d, caps %d, func %d]\n", key, shift, ctrl, alt, cmd, caps, func);
 }
 
 void onScrollWheel(glow *gl, int win, int dx, int dy, int x, int y, void *data) {

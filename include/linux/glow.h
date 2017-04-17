@@ -87,6 +87,11 @@ private:
 	std::vector<long> startTime;
 	std::vector<long> prevTime;
 	unsigned int capsmask;
+	unsigned int shiftmask;
+	unsigned int ctrlmask;
+	unsigned int altmask;
+	unsigned int cmdmask;
+	unsigned int capsmask;
 	std::vector<bool> requiresRender;
 	std::vector<bool> initWindowPlacement;
 	std::vector<bool> isIdle;
@@ -106,8 +111,8 @@ private:
 	std::vector<void (*)(glow *gl, int wid, unsigned short button, int x, int y, void *data)> mouseUpCallback;
 	std::vector<void (*)(glow *gl, int wid, int x, int y, void *data)> mouseMoveCallback;
 	std::vector<void (*)(glow *gl, int wid, int dx, int dy, int x, int y, void *data)> scrollWheelCallback;
-	std::vector<void (*)(glow *gl, int wid, unsigned short key, int x, int y, void *data)> keyDownCallback;
-	std::vector<void (*)(glow *gl, int wid, unsigned short key, int x, int y, void *data)> keyUpCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data)> keyDownCallback;
+	std::vector<void (*)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data)> keyUpCallback;
 
 	std::vector<void*> renderData;
 	std::vector<void*> idleData;
@@ -146,8 +151,8 @@ public:
 	void mouseUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short button, int x, int y, void *data), void *data);
 	void mouseMoveListener(int winId, void (*callback)(glow *gl, int wid, int x, int y, void *data), void *data);
 	void scrollWheelListener(int winId, void (*callback)(glow *gl, int wid, int dx, int dy, int x, int y, void *data), void *data);
-	void keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
-	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, int x, int y, void *data), void *data);
+	void keyDownListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data);
+	void keyUpListener(int winId, void (*callback)(glow *gl, int wid, unsigned short key, unsigned short modifiers, int x, int y, void *data), void *data);
 
 	void swapBuffers(int winId);
 	bool requestRenderFrame(int winId);
