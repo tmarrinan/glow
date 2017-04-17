@@ -407,9 +407,7 @@ void glow::runLoop() {
 	unsigned short btn;
 	int dx;
 	int dy;
-	int charcount;
-	char buffer[20];
-	int bufsize = 20;
+	int modIdx;
 	KeySym keysym;
 	XComposeStatus compose;
 	XkbStateRec kstate;
@@ -430,10 +428,10 @@ void glow::runLoop() {
 			XLockDisplay(display);
 
 			XkbGetState(display, XkbUseCoreKbd, &kstate);
-			bool shift = kstate.locked_mods & shiftmask;
-			bool control = kstate.locked_mods & ctrlmask;
-			bool alt = kstate.locked_mods & altmask;
-			bool command = kstate.locked_mods & cmdmask;
+			bool shift = kstate.base_mods & shiftmask;
+			bool control = kstate.base_mods & ctrlmask;
+			bool alt = kstate.base_mods & altmask;
+			bool command = kstate.base_mods & cmdmask;
 			bool caps = kstate.locked_mods & capsmask;
 			bool func = 0;
 
@@ -467,9 +465,11 @@ void glow::runLoop() {
 				case KeyPress:
 					if (!keyDownCallback[winId]) break;
 
-					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
-					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyDownCallback[winId](this, winId, buffer[0], mod, mouseX, mouseY, keyDownData[winId]);
+					modIdx = (shift & ShiftMask) | (caps % LockMask);
+					keysym = XLookupKeysym((XKeyEvent*)&event, modIdx);
+					if (keysym == XK_ISO_Left_Tab) keysym = XK_Tab;
+					if ((keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_Tab || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
+						keyDownCallback[winId](this, winId, keysym & 0xFF, mod, mouseX, mouseY, keyDownData[winId]);
 					}
 					else {
 						if (keysym == XK_Caps_Lock) {
@@ -488,9 +488,11 @@ void glow::runLoop() {
 				case KeyRelease:
 					if (!keyUpCallback[winId]) break;
 
-					charcount = XLookupString((XKeyEvent*)&event, buffer, bufsize, &keysym, &compose);
-					if ((keysym >= XK_KP_Space && keysym <= XK_KP_9) || (keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
-						keyUpCallback[winId](this, winId, buffer[0], mod, mouseX, mouseY, keyUpData[winId]);
+					modIdx = (shift & ShiftMask) | (caps % LockMask);
+					keysym = XLookupKeysym((XKeyEvent*)&event, modIdx);
+					if (keysym == XK_ISO_Left_Tab) keysym = XK_Tab;
+					if ((keysym >= XK_space && keysym <= XK_asciitilde) || keysym == XK_Tab || keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_Return || keysym == XK_Escape) {
+						keyUpCallback[winId](this, winId, keysym & 0xFF, mod, mouseX, mouseY, keyDownData[winId]);
 					}
 					else {
 						if (keysym != XK_Caps_Lock) {

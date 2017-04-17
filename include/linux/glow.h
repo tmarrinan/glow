@@ -86,7 +86,6 @@ private:
     int mouseY;
 	std::vector<long> startTime;
 	std::vector<long> prevTime;
-	unsigned int capsmask;
 	unsigned int shiftmask;
 	unsigned int ctrlmask;
 	unsigned int altmask;
