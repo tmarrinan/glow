@@ -57,17 +57,21 @@ void init(glow *gl, int win, appData *d) {
 	gl->getGLVersions(&version, &shadingVersion);
 	printf("Using OpenGL: %s, GLSL: %s\n", version.c_str(), shadingVersion.c_str());
 
-	string text1 = "☺hello";
-	string text2 = "\xe2\x98\xbaworld\u263a";
+	string text1 = "☺hello there, my name is 'text'. Nice to meet you!";
+	string text2 = "\xe2\x98\xbaworld\u263a i am awesome. soooofreak'nawesome!";
 	printf("%s %s\n", text1.c_str(), text2.c_str());
 
 	GLOW_FontFace *face;
 	unsigned char *textPx1, *textPx2;
 	unsigned int textW1, textH1, textB1, textW2, textH2, textB2;
 	unsigned char col[3] = {255, 126, 0};
-	gl->createFontFace(d->exePath + "../resrc/fonts/Arial.ttf", 96, &face);
-	gl->renderStringToTexture(face, text1, false, &textW1, &textH1, &textB1, &textPx1);
-	gl->renderStringToTexture(face, text2, col, false, &textW2, &textH2, &textB2, &textPx2);
+	//gl->createFontFace(d->exePath + "../resrc/fonts/Arial.ttf", 96, &face);
+	gl->createFontFace(d->exePath + "../resrc/fonts/Arial.ttf", 48, &face);
+	//gl->renderStringToTexture(face, text1, false, &textW1, &textH1, &textB1, &textPx1);
+	//gl->renderStringToTexture(face, text2, col, false, &textW2, &textH2, &textB2, &textPx2);
+
+	gl->renderStringToTextureWithWrap(face, text1, 400, false, &textW1, &textH1, &textB1, &textPx1);
+	gl->renderStringToTextureWithWrap(face, text2, 300, col, false, &textW2, &textH2, &textB2, &textPx2);
 
 	glGenTextures(2, d->textures);
 	glBindTexture(GL_TEXTURE_2D, d->textures[0]);

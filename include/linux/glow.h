@@ -57,6 +57,7 @@ typedef struct GLOW_FontFace {
 } GLOW_FontFace;
 
 typedef struct GLOW_CharGlyph {
+	uint32_t charcode;	
 	unsigned int width;
 	unsigned int height;
 	unsigned char *pixels;
@@ -166,6 +167,8 @@ public:
 	void setFontSize(GLOW_FontFace *face, unsigned int size);
 	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
 	void renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
+	void renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Text, int wrapWidth, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
+	void renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Text, int wrapWidth, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels);
 
 	void getGLVersions(std::string *glv, std::string *glslv);	
 };

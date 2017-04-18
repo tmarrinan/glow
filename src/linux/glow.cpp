@@ -774,6 +774,7 @@ void glow::getRenderedGlyphsFromString(GLOW_FontFace *face, std::string text, un
 
 		glyphs->push_back(GLOW_CharGlyph());
 		int c = glyphs->size() - 1;
+		(*glyphs)[c].charcode = charcode;
 		(*glyphs)[c].width = face->face->glyph->bitmap.width;
 		(*glyphs)[c].height = face->face->glyph->bitmap.rows;
 		(*glyphs)[c].pixels = (unsigned char *)malloc((*glyphs)[c].width * (*glyphs)[c].height);
@@ -801,8 +802,12 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, bool
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, baseline, &glyphs);
 
-	*width = (*width) + (4 - ((*width) % 4));
-	*height = (*height) + (4 - ((*height) % 4));
+	int r = *width % 4;
+	if (r != 0)
+		*width = *width + 4 - r;
+	r = *height % 4;
+	if (r != 0)
+		*height = *height + 4 - r;
 
 	int size = (*width) * (*height);
 	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
@@ -833,8 +838,13 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 
 	getRenderedGlyphsFromString(face, utf8Text, width, height, baseline, &glyphs);
 
-	*width = (*width) + (4 - ((*width) % 4));
-	*height = (*height) + (4 - ((*height) % 4));
+	int r = *width % 4;
+	if (r != 0)
+		*width = *width + 4 - r;
+	r = *height % 4;
+	if (r != 0)
+		*height = *height + 4 - r;
+
 	unsigned int bline = *baseline;
 
 	int size = (*width) * (*height) * 4;
@@ -860,6 +870,165 @@ void glow::renderStringToTexture(GLOW_FontFace *face, std::string utf8Text, unsi
 		}
 		x += glyphs[i].advanceX / 64;
 		free(glyphs[i].pixels);
+	}
+}
+
+void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Text, int wrapWidth, bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels) {
+	int i, j, k;
+	std::vector<GLOW_CharGlyph> glyphs;
+
+	unsigned int totalW, totalH, bline;
+	getRenderedGlyphsFromString(face, utf8Text, &totalW, &totalH, &bline, &glyphs);
+
+	int lines, x, lineHeight, space;
+	std::vector<int> lineBreaks;	
+	x = 0;
+	lines = 1;
+	lineHeight = (int)((double)face->size * 1.1);
+	space = -1;
+	i = 0;
+	while (i<glyphs.size()) {
+		if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
+			space = i;
+		}
+		if (x + (glyphs[i].width) > wrapWidth) {
+			x = 0;
+			if (space >= 0) {
+				i = space;
+				free(glyphs[i].pixels);
+				glyphs.erase(glyphs.begin() + i);
+			}
+			i = space >= 0 ? space : i;
+			lineBreaks.push_back(i);
+			lines++;
+			space = -1;
+		}
+		else {
+			x += glyphs[i].advanceX / 64;
+			i++;
+		}
+	}
+	lineBreaks.push_back(glyphs.size());
+
+	int r = wrapWidth % 4;
+	if (r == 0)
+		*width = wrapWidth;
+	else
+		*width = wrapWidth + 4 - r;
+	r = (lines * lineHeight) % 4;
+	if (r == 0)
+		*height = lines * lineHeight;
+	else
+		*height = (lines * lineHeight) + 4 - r;
+	
+	int size = (*width) * (*height);
+	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
+	memset(*pixels, 0, size);
+
+	lines = 0;
+	x = 0;
+	int l, pt, ix, iy, idx;
+	int start = 0;
+	for (l=0; l<lineBreaks.size(); l++) {
+		x = 0;
+		for (i=start; i<lineBreaks[l]; i++) {
+			for (j=0; j<glyphs[i].height; j++) {
+				pt = bline - glyphs[i].top + (lines * lineHeight);
+				iy = pt + j;
+				if (flipY) iy = ((*height) - iy);
+				for (k=0; k<glyphs[i].width; k++) {
+					ix = glyphs[i].left + x + k;
+					idx = (*width) * iy + ix;
+					if (idx < 0 || idx >= size) continue;
+					(*pixels)[idx] = glyphs[i].pixels[glyphs[i].width * j + k];
+				}
+			}
+			x += glyphs[i].advanceX / 64;
+			free(glyphs[i].pixels);
+		}
+		start = lineBreaks[l];
+		lines++;
+	}
+}
+
+void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Text, int wrapWidth, unsigned char color[3], bool flipY, unsigned int *width, unsigned int *height, unsigned int *baseline, unsigned char **pixels) {
+	int i, j, k;
+	std::vector<GLOW_CharGlyph> glyphs;
+
+	unsigned int totalW, totalH, bline;
+	getRenderedGlyphsFromString(face, utf8Text, &totalW, &totalH, &bline, &glyphs);
+
+	int lines, x, lineHeight, space;
+	std::vector<int> lineBreaks;	
+	x = 0;
+	lines = 1;
+	lineHeight = (int)((double)face->size * 1.1);
+	space = -1;
+	i = 0;
+	while (i<glyphs.size()) {
+		if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
+			space = i;
+		}
+		if (x + (glyphs[i].width) > wrapWidth) {
+			x = 0;
+			if (space >= 0) {
+				i = space;
+				free(glyphs[i].pixels);
+				glyphs.erase(glyphs.begin() + i);
+			}
+			i = space >= 0 ? space : i;
+			lineBreaks.push_back(i);
+			lines++;
+			space = -1;
+		}
+		else {
+			x += glyphs[i].advanceX / 64;
+			i++;
+		}
+	}
+	lineBreaks.push_back(glyphs.size());
+
+	int r = wrapWidth % 4;
+	if (r == 0)
+		*width = wrapWidth;
+	else
+		*width = wrapWidth + 4 - r;
+	r = (lines * lineHeight) % 4;
+	if (r == 0)
+		*height = lines * lineHeight;
+	else
+		*height = (lines * lineHeight) + 4 - r;
+	
+	int size = (*width) * (*height) * 4;
+	*pixels = (unsigned char*)malloc(size * sizeof(unsigned char));
+	memset(*pixels, 0, size);
+
+	lines = 0;
+	x = 0;
+	int l, pt, ix, iy, idx;
+	int start = 0;
+	for (l=0; l<lineBreaks.size(); l++) {
+		x = 0;
+		for (i=start; i<lineBreaks[l]; i++) {
+			for (j=0; j<glyphs[i].height; j++) {
+				pt = bline - glyphs[i].top + (lines * lineHeight);
+				iy = pt + j;
+				if (flipY) iy = ((*height) - iy);
+				for (k=0; k<glyphs[i].width; k++) {
+					ix = glyphs[i].left + x + k;
+					idx = (4 * (*width) * iy) + (4 * ix);
+					if (idx < 0 || idx >= size) continue;
+					(*pixels)[idx + 0] = color[0];
+					(*pixels)[idx + 1] = color[1];
+					(*pixels)[idx + 2] = color[2];
+					(*pixels)[idx + 3] = glyphs[i].pixels[glyphs[i].width * j + k];
+				}
+			}
+			x += glyphs[i].advanceX / 64;
+			free(glyphs[i].pixels);
+		}
+		start = lineBreaks[l];
+		lines++;
 	}
 }
 
