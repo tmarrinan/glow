@@ -58,7 +58,7 @@ void init(glow *gl, int win, appData *d) {
 	printf("Using OpenGL: %s, GLSL: %s\n", version.c_str(), shadingVersion.c_str());
 
 	string text1 = "☺hello there, my name is 'text'. Nice to meet you!";
-	string text2 = "\xe2\x98\xbaworld\u263a i am awesome. soooofreak'nawesome!";
+	string text2 = "\xe2\x98\xbaworld\u263a i am awesome. soooofreak'n-awesome!";
 	printf("%s %s\n", text1.c_str(), text2.c_str());
 
 	GLOW_FontFace *face;

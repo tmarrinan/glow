@@ -881,27 +881,38 @@ void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Te
 	getRenderedGlyphsFromString(face, utf8Text, &totalW, &totalH, &bline, &glyphs);
 
 	int lines, x, lineHeight, space;
+	bool hyphen;
 	std::vector<int> lineBreaks;	
 	x = 0;
 	lines = 1;
 	lineHeight = (int)((double)face->size * 1.1);
 	space = -1;
+	hyphen = false;
 	i = 0;
 	while (i<glyphs.size()) {
 		if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
 			space = i;
 		}
+		else if (glyphs[i].charcode == '-') {
+			space = i;
+			hyphen = true;
+		}
 		if (x + (glyphs[i].width) > wrapWidth) {
 			x = 0;
 			if (space >= 0) {
-				i = space;
-				free(glyphs[i].pixels);
-				glyphs.erase(glyphs.begin() + i);
+				if (hyphen) {
+					space++;
+				}
+				else {
+					free(glyphs[space].pixels);
+					glyphs.erase(glyphs.begin() + space);
+				}
 			}
 			i = space >= 0 ? space : i;
 			lineBreaks.push_back(i);
 			lines++;
 			space = -1;
+			hyphen = false;
 		}
 		else {
 			x += glyphs[i].advanceX / 64;
@@ -959,27 +970,38 @@ void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Te
 	getRenderedGlyphsFromString(face, utf8Text, &totalW, &totalH, &bline, &glyphs);
 
 	int lines, x, lineHeight, space;
+	bool hyphen;
 	std::vector<int> lineBreaks;	
 	x = 0;
 	lines = 1;
 	lineHeight = (int)((double)face->size * 1.1);
 	space = -1;
+	hyphen = false;
 	i = 0;
 	while (i<glyphs.size()) {
 		if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
 			space = i;
 		}
+		else if (glyphs[i].charcode == '-') {
+			space = i;
+			hyphen = true;
+		}
 		if (x + (glyphs[i].width) > wrapWidth) {
 			x = 0;
 			if (space >= 0) {
-				i = space;
-				free(glyphs[i].pixels);
-				glyphs.erase(glyphs.begin() + i);
+				if (hyphen) {
+					space++;
+				}
+				else {
+					free(glyphs[space].pixels);
+					glyphs.erase(glyphs.begin() + space);
+				}
 			}
 			i = space >= 0 ? space : i;
 			lineBreaks.push_back(i);
 			lines++;
 			space = -1;
+			hyphen = false;
 		}
 		else {
 			x += glyphs[i].advanceX / 64;
