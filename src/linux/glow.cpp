@@ -885,18 +885,11 @@ void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Te
 	std::vector<int> lineBreaks;	
 	x = 0;
 	lines = 1;
-	lineHeight = (int)((double)face->size * 1.1);
+	lineHeight = (int)((double)face->size * 1.2);
 	space = -1;
 	hyphen = false;
 	i = 0;
 	while (i<glyphs.size()) {
-		if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
-			space = i;
-		}
-		else if (glyphs[i].charcode == '-') {
-			space = i;
-			hyphen = true;
-		}
 		if (x + (glyphs[i].width) > wrapWidth) {
 			x = 0;
 			if (space >= 0) {
@@ -915,6 +908,13 @@ void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Te
 			hyphen = false;
 		}
 		else {
+			if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
+				space = i;
+			}
+			else if (glyphs[i].charcode == '-') {
+				space = i;
+				hyphen = true;
+			}
 			x += glyphs[i].advanceX / 64;
 			i++;
 		}
@@ -974,18 +974,11 @@ void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Te
 	std::vector<int> lineBreaks;	
 	x = 0;
 	lines = 1;
-	lineHeight = (int)((double)face->size * 1.1);
+	lineHeight = (int)((double)face->size * 1.2);
 	space = -1;
 	hyphen = false;
 	i = 0;
 	while (i<glyphs.size()) {
-		if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
-			space = i;
-		}
-		else if (glyphs[i].charcode == '-') {
-			space = i;
-			hyphen = true;
-		}
 		if (x + (glyphs[i].width) > wrapWidth) {
 			x = 0;
 			if (space >= 0) {
@@ -1004,6 +997,13 @@ void glow::renderStringToTextureWithWrap(GLOW_FontFace *face, std::string utf8Te
 			hyphen = false;
 		}
 		else {
+			if (glyphs[i].charcode == ' ' || glyphs[i].charcode == '\t' || glyphs[i].charcode == '\n' || glyphs[i].charcode == '\r') {
+				space = i;
+			}
+			else if (glyphs[i].charcode == '-') {
+				space = i;
+				hyphen = true;
+			}
 			x += glyphs[i].advanceX / 64;
 			i++;
 		}
